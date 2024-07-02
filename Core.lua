@@ -88,7 +88,8 @@ function Tankalyze:OnInitialize()
     
     alertSelf = false,
     sct = false,
-    humour = true,
+    humour = false,
+    mainTank = false,
     
     isLogging = false,
     logShout = { },
@@ -501,6 +502,19 @@ function Tankalyze:OnInitialize()
           },
         },
       },
+      mainTank = {
+        type = "toggle",
+        name = "Main Tank Mode",
+        desc = "Announces misses,parries,dodges at fight start",
+        icon = "Interface\\Icons\\Ability_Warrior_DefensiveStance",
+        get = function()
+          return self.db.char.mainTank
+        end,
+        set = function()
+          self.db.char.mainTank = not self.db.char.mainTank
+        end,
+        order = 4,
+      },
       mspacer1 = {
         type = "header",
         order = 9,
@@ -559,7 +573,7 @@ function Tankalyze:OnInitialize()
         set = function()
           self.db.char.isLogging = not self.db.char.isLogging
         end,
-        order = 81,
+        order = 82,
       },
       mspacer3 = {
         type = "header",
@@ -674,6 +688,9 @@ function Tankalyze:OnEnable()
     end
   end  
   --[[ Register Events for example ]]
+
+  -- Does UNIT_COMBAT only apply to things you do?
+
   -- CHAT_MSG_SPELL_SELF_DAMAGE:Your Taunt failed. Chromatic Dragonspawn is immune.
   -- CHAT_MSG_SPELL_SELF_DAMAGE:Your Challenging Shout failed. Chromatic Dragonspawn is immune.
   -- CHAT_MSG_SPELL_SELF_DAMAGE:Your Taunt was resisted by Chromatic Dragonspawn.
@@ -681,9 +698,15 @@ function Tankalyze:OnEnable()
   -- self:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_CREATURE_DAMAGE") -- Challenging Shout & Challenging Roar?
   -- self:RegisterEvent("SpellStatus_SpellCastInstant") -- SpellStatusMixin
   self:RegisterEvent("UNIT_CASTEVENT") -- SpellStatusMixin
+  self:RegisterEvent("CHAT_MSG_COMBAT_SELF_MISSES") -- SpellStatusMixin
+  self:RegisterEvent("PLAYER_REGEN_DISABLED") -- SpellStatusMixin
+  -- self:RegisterEvent("PLAYER_REGEN_ENABLED") -- SpellStatusMixin
   -- self:RegisterEvent("CHAT_MSG_SPELL_PARTY_DAMAGE") -- group member taunts (does it fire for raid member not in my party?)
   -- self:RegisterEvent("CHAT_MSG_SPELL_FRIENDLYPLAYER_DAMAGE") -- friendly player taunts
   -- self:RegisterEvent("CHAT_MSG_SPELL_PET_DAMAGE") -- pet taunts
+  self:RegisterEvent("ONE_HANDED_MISSES")
+  self:RegisterEvent("TRACKING_TIME_ENDED")
+  -- self:RegisterEvent("SPECIAL_MISSES")
 end
 
 --[[ *** Do stuff when disabled? *** ]]
@@ -704,6 +727,66 @@ function Tankalyze:CHAT_MSG_SPELL_PARTY_DAMAGE()
   -- Taunt, Growl
 end
 
+local in_combat = false
+local tried_vs = nil
+
+function Tankalyze:PLAYER_REGEN_DISABLED()
+  in_combat = true
+  Tankalyze:ScheduleEvent("TRACKING_TIME_ENDED",20)
+end
+
+function Tankalyze:TRACKING_TIME_ENDED()
+  -- print("itended")
+  in_combat = false
+end
+
+function Tankalyze:ONE_HANDED_MISSES(ability,type,target)
+  if not in_combat or not self.db.char.mainTank then return end
+  local _,_,OH_ID = string.find(GetInventoryItemLink("player", 17),"item:(%d+)")
+  _, _, _, _, _, itemType = GetItemInfo(OH_ID)
+
+  local onehanded = itemType == nil or itemType == "Shields" or itemType == "Miscellaneous"
+  if ability == "MELEE" and onehanded then ability = "Melee Hit" end
+  if type == "MISS" and ability ~= "MELEE" then
+    self:Announce(">>> "..ability.." missed "..target.." <<<", "YELL")
+  elseif type == "DODGE" and ability ~= "MELEE" then
+    self:Announce(">>> "..ability.." was dodged by "..target.." <<<", "YELL")
+  elseif type == "PARRY" and ability ~= "MELEE" then
+    self:Announce(">>> "..ability.." was parried by "..target.." <<<", "YELL")
+  elseif type == "IMMUNE" and ability ~= "MELEE" then
+    self:Announce(">>> "..ability.." failed, "..target.."was Immune <<<", "YELL")
+  end
+end
+
+function Tankalyze:CHAT_MSG_COMBAT_SELF_MISSES(msg)
+  -- print(msg)
+
+  local Misses = {
+    "You miss (.+)%.",
+    "You attack. (.+) parries%.",
+    "You attack. (.+) dodges%.",
+    "You attack but (.+) is immune%.",
+  }
+  local ix,target
+  for i,v in ipairs(Misses) do
+    local _,_,v_target = string.find(msg,v)
+    if v_target then
+      ix,target = i,v_target
+      break
+    end
+  end
+
+  if ix == 1 then
+    Tankalyze:TriggerEvent("ONE_HANDED_MISSES","MELEE","MISS",target)
+  elseif ix == 2 then
+    Tankalyze:TriggerEvent("ONE_HANDED_MISSES","MELEE","DODGE",target)
+  elseif ix == 3 then
+    Tankalyze:TriggerEvent("ONE_HANDED_MISSES","MELEE","PARRY",target)
+  elseif ix == 4 then
+    Tankalyze:TriggerEvent("ONE_HANDED_MISSES","MELEE","IMMUNE",target)
+  end
+end
+
 function Tankalyze:CHAT_MSG_SPELL_FRIENDLYPLAYER_DAMAGE()
   --print(event..":"..tostring(arg1)..":"..tostring(arg2))
   -- Taunt, Growl
@@ -714,63 +797,80 @@ function Tankalyze:CHAT_MSG_SPELL_PET_DAMAGE()
   -- Growl, Torment
 end
 
-local tried_vs = nil
-function Tankalyze:CHAT_MSG_SPELL_SELF_DAMAGE()
+function Tankalyze:CHAT_MSG_SPELL_SELF_DAMAGE(msg)
   --[[ An event we are subscribing too ]]
 
-  local _, _, UsedMockingBlow = string.find(arg1, L["MockingBlowRX"])
-  local _, _, UsedChallengingShout = string.find(arg1, L["ChallengingShoutRX"])
-  local _, _, UsedChallengingRoar = string.find(arg1, L["ChallengingRoarRX"])
+  -- print(msg)
+
+  local _, _, UsedMockingBlow = string.find(msg, L["MockingBlowRX"])
+  local _, _, UsedChallengingShout = string.find(msg, L["ChallengingShoutRX"])
+  local _, _, UsedChallengingRoar = string.find(msg, L["ChallengingRoarRX"])
+
+  if ((UsedChallengingShout) and (self.db.char.isLogging)) then
+    self.db.char.logShout[time()] = "(1) "..msg
+  end
+  if ((UsedChallengingRoar) and (self.db.char.isLogging)) then
+    self.db.char.logRoar[time()] = "(1) "..msg
+  end
 
   if (UsedMockingBlow) then
-    local MockingBlowHit = string.find(arg1, L["MockingBlowSuccessRX"])
+    local MockingBlowHit = string.find(msg, L["MockingBlowSuccessRX"])
 
     if (not MockingBlowHit) then
       self:AnnounceResist(self.db.char.resists.messages.mocking, self.db.char.resists.messages.mockingSCT)
+      return
     end
   end
 
   local TauntFailed = false
   for _,key in ipairs(TauntFails) do
-    local _,_,TauntFailed = string.find(arg1,L[key])
+    local _,_,TauntFailed = string.find(msg,L[key])
     if (TauntFailed) then 
       self:AnnounceResist(self.db.char.resists.messages.taunt, self.db.char.resists.messages.tauntSCT)
-      break  
+      return
     end
   end
   local GrowlFailed = false
   for _,key in ipairs(GrowlFails) do
-    local _,_,GrowlFailed = string.find(arg1,L[key])
+    local _,_,GrowlFailed = string.find(msg,L[key])
     if (GrowlFailed) then  
       self:AnnounceResist(self.db.char.resists.messages.growl, self.db.char.resists.messages.growlSCT)
-      break  
+      return
     end
   end
 
-  if ((UsedChallengingShout) and (self.db.char.isLogging)) then
-    self.db.char.logShout[time()] = "(1) "..arg1
+  -- check for general yellow fails
+  local Misses = {
+    "Your (.+) missed (.+)%.",
+    "Your (.+) was dodged by (.+)%.",
+    "Your (.+) is parried by (.+)%.",
+    "Your (.+) failed%. (.+) is immune%.",
+  }
+  local ix,ability,target
+  for i,v in ipairs(Misses) do
+    local _,_,v_ability,v_target = string.find(msg,v)
+    if v_ability and v_target then
+      ix,ability,target = i,v_ability,v_target
+      break
+    end
   end
-  if ((UsedChallengingRoar) and (self.db.char.isLogging)) then
-    self.db.char.logRoar[time()] = "(1) "..arg1
+
+  if ix == 1 then
+    Tankalyze:TriggerEvent("ONE_HANDED_MISSES",ability,"MISS",target)
+  elseif ix == 2 then
+    Tankalyze:TriggerEvent("ONE_HANDED_MISSES",ability,"DODGE",target)
+  elseif ix == 3 then
+    Tankalyze:TriggerEvent("ONE_HANDED_MISSES",ability,"PARRY",target)
+  elseif ix == 4 then
+    Tankalyze:TriggerEvent("ONE_HANDED_MISSES",ability,"IMMUNE",target)
   end
 end
-
-
--- function Tankalyze:CHAT_MSG_SPELL_PERIODIC_CREATURE_DAMAGE()
---   local _, _, UsedChallengingShout = string.find(arg1, L["ChallengingShoutRX"])
---   local _, _, UsedChallengingRoar = string.find(arg1, L["ChallengingRoarRX"])
-
---   if ((UsedChallengingShout) and (self.db.char.isLogging)) then
---     self.db.char.logShout[time()] = "(2) "..arg1
---   end
---   if ((UsedChallengingRoar) and (self.db.char.isLogging)) then
---     self.db.char.logRoar[time()] = "(2) "..arg1
---   end
--- end
 
 -- function Tankalyze:SpellStatus_SpellCastInstant(sId, sName, sRank, sFullName, sCastTime)
 function Tankalyze:UNIT_CASTEVENT(casterGuid,targetGuid,type,sId,sCastTime)
   local sName, sRank = SpellInfo(sId)
+  local _,player_guid = UnitExists("player")
+  if casterGuid ~= player_guid then return end
 
   if (sName == L["Taunt"]) then
     tried_vs = targetGuid
@@ -812,7 +912,7 @@ function Tankalyze:AnnounceTaunt(msg, msgSCT)
   else
     TargetLevel = L["level "]..TargetLevel
   end
-  
+
   if ((UnitIsFriend("player", target)) and (self.db.char.humour)) then
     TargetName = L["<Friendly Target>"]
     TargetLevel = L["go me"]
@@ -825,7 +925,7 @@ function Tankalyze:AnnounceTaunt(msg, msgSCT)
     --SCT:Display_Event("SHOWMISS", alertStringShort)
     SCT:Display_Event("SHOWCOMBAT", alertStringShort)
   end
-  
+
   self:Announce(alertString, self.db.char.announces.type, self.db.char.announces.channel)
 end
 
@@ -845,7 +945,7 @@ function Tankalyze:AnnounceResist(msg, msgSCT)
   else
     TargetLevel = L["level "]..TargetLevel
   end
-  
+
   if ((UnitIsFriend("player", target)) and (self.db.char.humour)) then
     TargetName = L["<Friendly Target>"]
     TargetLevel = L["go me"]
@@ -861,7 +961,7 @@ function Tankalyze:AnnounceResist(msg, msgSCT)
     --SCT:Display_Event("SHOWMISS", alertStringShort)
     SCT:Display_Event("SHOWCOMBAT", alertStringShort)
   end
-  
+
   self:Announce(alertString, self.db.char.resists.type, self.db.char.resists.channel)
   tried_vs = nil -- reset who you tried on
 end
