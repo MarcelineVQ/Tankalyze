@@ -78,6 +78,7 @@ function Tankalyze:OnInitialize()
       messages = {
         taunt = L["TauntUsedMessage"],
         tauntSCT = L["TauntUsedMessageSCT"],
+        deathwish = L["DeathWishUsedMessage"],
         wall = L["WallUsedMessage"],
         stand = L["StandUsedMessage"],
         gem = L["GemUsedMessage"],
@@ -86,10 +87,13 @@ function Tankalyze:OnInitialize()
       },
     },
     
+    grouponly = true,
+
     alertSelf = false,
     sct = false,
     humour = false,
     mainTank = false,
+    mainTankDuration = 15,
     
     isLogging = false,
     logShout = { },
@@ -113,9 +117,22 @@ function Tankalyze:OnInitialize()
         type = "header",
         order = 2
       },
+      grouponly = {
+        type = "toggle",
+        name = L["Group Only"],
+        desc = L["Active only when player in group"],
+        -- icon = "Interface\\Icons\\Spell_Nature_Reincarnation",
+        get = function()
+          return self.db.char.grouponly
+        end,
+        set = function()
+          self.db.char.grouponly = not self.db.char.grouponly
+        end,
+        order = 3,
+      },
       resists = {
         type = "group",
-        order = 3,
+        order = 4,
         name = L["Resists"],
         desc = L["Settings for resists"],
         --icon = "Interface\\Icons\\Spell_Nature_Reincarnation",
@@ -296,7 +313,7 @@ function Tankalyze:OnInitialize()
       },
       announces = {
         type = "group",
-        order = 4,
+        order = 5,
         name = L["Announces"],
         desc = L["Settings for announces"],
         --icon = "Interface\\Icons\\Spell_Holy_AshesToAshes",
@@ -314,6 +331,19 @@ function Tankalyze:OnInitialize()
             end,
             order = 1,
           },
+          deathwish = {
+            type = "toggle",
+            name = L["Death Wish"],
+            desc = L["Death Wish"],
+            icon = "Interface\\Icons\\Spell_Shadow_DeathPact",
+            get = function()
+              return self.db.char.announces.deathwish
+            end,
+            set = function()
+              self.db.char.announces.deathwish = not self.db.char.announces.deathwish
+            end,
+            order = 2,
+          },
           wall = {
             type = "toggle",
             name = L["Shield Wall"],
@@ -325,7 +355,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.wall = not self.db.char.announces.wall
             end,
-            order = 2,
+            order = 3,
           },
           stand = {
             type = "toggle",
@@ -338,7 +368,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.stand = not self.db.char.announces.stand
             end,
-            order = 3,
+            order = 4,
           },
           gem = {
             type = "toggle",
@@ -351,7 +381,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.gem = not self.db.char.announces.gem
             end,
-            order = 4,
+            order = 5,
           },
           shout = {
             type = "toggle",
@@ -364,7 +394,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.shout = not self.db.char.announces.shout
             end,
-            order = 5,
+            order = 6,
           },
           roar = {
             type = "toggle",
@@ -377,7 +407,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.roar = not self.db.char.announces.roar
             end,
-            order = 6,
+            order = 7,
           },
           type = {
             type = "text",
@@ -428,6 +458,20 @@ function Tankalyze:OnInitialize()
                 usage = "<any string>",
                 order = 1,
               },
+              deathwish = {
+                type = "text",
+                name = L["Death Wish"],
+                desc = L["MessagesInfoNoTarget"],
+                icon = "Interface\\Icons\\Spell_Shadow_DeathPact",
+                get = function()
+                  return self.db.char.announces.messages.deathwish
+                end,
+                set = function(arg1)
+                  self.db.char.announces.messages.deathwish = arg1
+                end,
+                usage = "<any string>",
+                order = 2,
+              },
               wall = {
                 type = "text",
                 name = L["Shield Wall"],
@@ -440,7 +484,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.wall = arg1
                 end,
                 usage = "<any string>",
-                order = 2,
+                order = 3,
               },
               stand = {
                 type = "text",
@@ -454,7 +498,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.stand = arg1
                 end,
                 usage = "<any string>",
-                order = 3,
+                order = 4,
               },
               gem = {
                 type = "text",
@@ -468,7 +512,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.gem = arg1
                 end,
                 usage = "<any string>",
-                order = 4,
+                order = 5,
               },
               shout = {
                 type = "text",
@@ -482,7 +526,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.shout = arg1
                 end,
                 usage = "<any string>",
-                order = 5,
+                order = 6,
               },
               roar = {
                 type = "text",
@@ -496,24 +540,50 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.roar = arg1
                 end,
                 usage = "<any string>",
-                order = 6,
+                order = 7,
               },
             },
           },
         },
       },
-      mainTank = {
-        type = "toggle",
+      mainTankMode = {
+        type = "group",
         name = "Main Tank Mode",
         desc = "Announces misses,parries,dodges at fight start",
         icon = "Interface\\Icons\\Ability_Warrior_DefensiveStance",
-        get = function()
-          return self.db.char.mainTank
-        end,
-        set = function()
-          self.db.char.mainTank = not self.db.char.mainTank
-        end,
-        order = 4,
+        args = {
+          mainTank = {
+            type = "toggle",
+            name = "Enable Main Tank Mode",
+            desc = "Toggle the Main Tank Mode",
+            -- icon = "Interface\\Icons\\Ability_Warrior_DefensiveStance",
+            get = function()
+              return self.db.char.mainTank
+            end,
+            set = function()
+              self.db.char.mainTank = not self.db.char.mainTank
+            end,
+            order = 11,
+          },
+          duration = {
+            type = "text",
+            name = "Main Tank Duration",
+            desc = "How long the main tank announce phase lasts at fight start",
+            --icon = "Interface\\Icons\\Spell_ChargePositive",
+            get = function()
+              return self.db.char.mainTankDuration
+            end,
+            set = function(arg1)
+              local n = tonumber(arg1)
+              if n then
+                self.db.char.mainTankDuration = n
+              end
+            end,
+            usage = "<any string>",
+            order = 21,
+          },
+        },
+        order = 6,
       },
       mspacer1 = {
         type = "header",
@@ -689,8 +759,6 @@ function Tankalyze:OnEnable()
   end  
   --[[ Register Events for example ]]
 
-  -- Does UNIT_COMBAT only apply to things you do?
-
   -- CHAT_MSG_SPELL_SELF_DAMAGE:Your Taunt failed. Chromatic Dragonspawn is immune.
   -- CHAT_MSG_SPELL_SELF_DAMAGE:Your Challenging Shout failed. Chromatic Dragonspawn is immune.
   -- CHAT_MSG_SPELL_SELF_DAMAGE:Your Taunt was resisted by Chromatic Dragonspawn.
@@ -732,7 +800,7 @@ local tried_vs = nil
 
 function Tankalyze:PLAYER_REGEN_DISABLED()
   in_combat = true
-  Tankalyze:ScheduleEvent("TRACKING_TIME_ENDED",20)
+  Tankalyze:ScheduleEvent("TRACKING_TIME_ENDED",self.db.char.mainTankDuration)
 end
 
 function Tankalyze:TRACKING_TIME_ENDED()
@@ -754,7 +822,7 @@ function Tankalyze:ONE_HANDED_MISSES(ability,type,target)
   elseif type == "PARRY" and ability ~= "MELEE" then
     self:Announce(">>> "..ability.." was parried by "..target.." <<<", "YELL")
   elseif type == "IMMUNE" and ability ~= "MELEE" then
-    self:Announce(">>> "..ability.." failed, "..target.."was Immune <<<", "YELL")
+    self:Announce(">>> "..ability.." failed, "..target.." was Immune <<<", "YELL")
   end
 end
 
@@ -879,6 +947,12 @@ function Tankalyze:UNIT_CASTEVENT(casterGuid,targetGuid,type,sId,sCastTime)
 		end
   elseif (sName == L["Mocking Blow"]) then
     tried_vs = targetGuid
+  elseif (sName == L["Death Wish"]) then
+    if self.db.char.announces.deathwish and not self.db.char.mainTank then
+      self:AnnounceInfo(self.db.char.announces.messages.deathwish)
+    elseif self.db.char.mainTank then
+      self:Announce(self.db.char.announces.messages.deathwish,"YELL")
+    end
   elseif ((sName == L["Shield Wall"]) and (self.db.char.announces.wall)) then
     self:AnnounceInfo(self.db.char.announces.messages.wall)
   elseif ((sName == L["Last Stand"]) and (self.db.char.announces.stand)) then
@@ -897,7 +971,7 @@ end
 --[[ *** Functions *** ]]
 
 function Tankalyze:AnnounceTaunt(msg, msgSCT)
-  local target = tried_vs
+  local target = tried_vs or "target"
   local TargetName = UnitName(target)
   local TargetLevel = UnitLevel(target) -- If the unit's level is unknown, i.e. a Level ?? target, or is a special boss, UnitLevel() will return -1
   local TargetClassification = UnitClassification(target) -- "worldboss", "rareelite", "elite", "rare" or "normal"
@@ -930,7 +1004,7 @@ function Tankalyze:AnnounceTaunt(msg, msgSCT)
 end
 
 function Tankalyze:AnnounceResist(msg, msgSCT)
-  local target = tried_vs
+  local target = tried_vs or "target"
   local TargetName = UnitName(target)
   local TargetLevel = UnitLevel(target) -- If the unit's level is unknown, i.e. a Level ?? target, or is a special boss, UnitLevel() will return -1
   local TargetClassification = UnitClassification(target) -- "worldboss", "rareelite", "elite", "rare" or "normal"
@@ -971,6 +1045,7 @@ function Tankalyze:AnnounceInfo(msg)
 end
 
 function Tankalyze:Announce(msg, type, channel)
+  if self.db.char.grouponly and not (GetNumPartyMembers() + GetNumRaidMembers() > 0) then return end
   if ((type == "GROUP") or (type == "GROUP_RW")) then
     local whereTo = nil
     if (GetNumRaidMembers() > 0) then

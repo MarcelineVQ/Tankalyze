@@ -39,11 +39,15 @@ L:RegisterTranslations("enUS", function() return {
 	["TauntUsedMessage"] = ">>> Taunted {t} <<<",
 	["TauntUsedMessageSCT"] = ">>> Taunted {t} <<<",
 	["WallUsedMessage"] = ">>> Shield Walling <<<",
+	["DeathWishUsedMessage"] = ">>> Death Wish used <<<",
 	["StandUsedMessage"] = ">>> Last Stand used <<<",
 	["GemUsedMessage"] = ">>> Lifegiving Gem used <<<",
 	["ShoutUsedMessage"] = ">>> Challenging Shout used (6 sec) <<<",
 	["RoarUsedMessage"] = ">>> Challenging Roar used (6 sec) <<<",
 	
+	["Group Only"] = true,
+	["Active only when player in group"] = true,
+
 	["Resists"] = true,
 	["Settings for resists"] = true,
 	["Resists Messages"] = true,
@@ -72,6 +76,7 @@ L:RegisterTranslations("enUS", function() return {
 	["Settings for announces"] = true,
 	["Announce Messages"] = true,
 	["Message settings for announces"] = true,
+	["Death Wish"] = true,
 	["Shield Wall"] = true,
 	["Challenging Shout"] = true,
 	["Challenging Roar"] = true,
