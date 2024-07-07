@@ -935,9 +935,11 @@ function Tankalyze:CHAT_MSG_SPELL_SELF_DAMAGE(msg)
 end
 
 -- function Tankalyze:SpellStatus_SpellCastInstant(sId, sName, sRank, sFullName, sCastTime)
+-- todo: convert these to simply use id's
 function Tankalyze:UNIT_CASTEVENT(casterGuid,targetGuid,type,sId,sCastTime)
   local sName, sRank = SpellInfo(sId)
   local _,player_guid = UnitExists("player")
+  if arg3 ~= "CAST" then return end
   if casterGuid ~= player_guid then return end
 
   if (sName == L["Taunt"]) then
@@ -955,7 +957,8 @@ function Tankalyze:UNIT_CASTEVENT(casterGuid,targetGuid,type,sId,sCastTime)
     end
   elseif ((sName == L["Shield Wall"]) and (self.db.char.announces.wall)) then
     self:AnnounceInfo(self.db.char.announces.messages.wall)
-  elseif ((sName == L["Last Stand"]) and (self.db.char.announces.stand)) then
+  -- last stand is two buffs, we only want to detect it once so use an id instead
+  elseif (sId == 12976 and (self.db.char.announces.stand)) then
     self:AnnounceInfo(self.db.char.announces.messages.stand)
   elseif ((sName == L["Lifegiving Gem"]) and (self.db.char.announces.gem)) then
     self:AnnounceInfo(self.db.char.announces.messages.gem)
