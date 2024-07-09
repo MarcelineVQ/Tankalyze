@@ -973,10 +973,26 @@ end
 
 --[[ *** Functions *** ]]
 
+
+-- SpellstatusV2IndexToIcon
+local raidMarkIcon = {
+  "",
+  "|cFFF7EF52[Star]|r", --u+2726
+  "|cFFE76100[Circle]|r", --u+25CF
+  "|cFFDE55E7[Diamond]|r", --u+2666
+  "|cFF2BD923[Triangle]|r", --u+25BC
+  "|cFF8FB9D0[Moon]|r", --u+263D
+  "|cFF00B9F3[Square]|r", --u+25A0
+  "|cFFB20A05[X]|r", --u+2716
+  "|cFFF1EFE4[Skull]|r", --u+263B
+}
+
 function Tankalyze:AnnounceTaunt(msg, msgSCT)
   local target = tried_vs or "target"
   local TargetName = UnitName(target)
   local TargetLevel = UnitLevel(target) -- If the unit's level is unknown, i.e. a Level ?? target, or is a special boss, UnitLevel() will return -1
+  local TargetMark = raidMarkIcon[(GetRaidTargetIndex(target) or 0) + 1]
+
   local TargetClassification = UnitClassification(target) -- "worldboss", "rareelite", "elite", "rare" or "normal"
   if ((not TargetLevel) or (TargetLevel == -1)) then TargetLevel = "??" end
   if (not TargetName) then TargetName = L["<No Target>"] end
@@ -994,8 +1010,8 @@ function Tankalyze:AnnounceTaunt(msg, msgSCT)
     TargetName = L["<Friendly Target>"]
     TargetLevel = L["go me"]
   end
-
-  local alertString = string.gsub(string.gsub(msg, "{t}", TargetName), "{l}", TargetLevel)
+  local alertString = string.gsub(string.gsub(string.gsub(msg, "{t}", TargetName), "{l}", TargetLevel), "{m}", TargetMark)
+  -- local alertString = string.gsub(string.gsub(msg, "{t}", TargetName), "{l}", TargetLevel, "{m}", raidMarks[TargetMark])
   local alertStringShort = string.gsub(string.gsub(msgSCT, "{t}", TargetName), "{l}", TargetLevel)
 
   if ((self.db.char.sct) and IsAddOnLoaded("sct")) then --if ((self.db.char.sct) and (SCT))then

@@ -36,7 +36,7 @@ L:RegisterTranslations("enUS", function() return {
 	["level "] = true,
 	["MessagesInfo"] = "Type the text you want to use for the setting {t} will be swapped for targetname and {l} for level (case sensitive)",
 	["MessagesInfoNoTarget"] = "Type the text you want to use for the setting",
-	["TauntUsedMessage"] = ">>> Taunted {t} <<<",
+	["TauntUsedMessage"] = ">>> Taunted {t} {m} <<<",
 	["TauntUsedMessageSCT"] = ">>> Taunted {t} <<<",
 	["WallUsedMessage"] = ">>> Shield Walling <<<",
 	["DeathWishUsedMessage"] = ">>> Death Wish used <<<",
