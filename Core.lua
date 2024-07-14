@@ -93,7 +93,7 @@ function Tankalyze:OnInitialize()
     sct = false,
     humour = false,
     mainTank = false,
-    mainTankDuration = 15,
+    mainTankDuration = 12,
     
     isLogging = false,
     logShout = { },
@@ -810,8 +810,8 @@ end
 
 function Tankalyze:ONE_HANDED_MISSES(ability,type,target)
   if not in_combat or not self.db.char.mainTank then return end
-  local _,_,OH_ID = string.find(GetInventoryItemLink("player", 17),"item:(%d+)")
-  _, _, _, _, _, itemType = GetItemInfo(OH_ID)
+  local _,_,OH_ID = string.find(GetInventoryItemLink("player", 17) or "","item:(%d+)")
+  _, _, _, _, _, itemType = GetItemInfo(OH_ID or "")
 
   local onehanded = itemType == nil or itemType == "Shields" or itemType == "Miscellaneous"
   if ability == "MELEE" and onehanded then ability = "Melee Hit" end
@@ -1011,7 +1011,6 @@ function Tankalyze:AnnounceTaunt(msg, msgSCT)
     TargetLevel = L["go me"]
   end
   local alertString = string.gsub(string.gsub(string.gsub(msg, "{t}", TargetName), "{l}", TargetLevel), "{m}", TargetMark)
-  -- local alertString = string.gsub(string.gsub(msg, "{t}", TargetName), "{l}", TargetLevel, "{m}", raidMarks[TargetMark])
   local alertStringShort = string.gsub(string.gsub(msgSCT, "{t}", TargetName), "{l}", TargetLevel)
 
   if ((self.db.char.sct) and IsAddOnLoaded("sct")) then --if ((self.db.char.sct) and (SCT))then
