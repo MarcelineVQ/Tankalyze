@@ -68,6 +68,7 @@ function Tankalyze:OnInitialize()
     
     announces = {
       taunt = true,
+      mocking = true,
       wall = false,
       stand = false,
       gem = false,
@@ -78,6 +79,8 @@ function Tankalyze:OnInitialize()
       messages = {
         taunt = L["TauntUsedMessage"],
         tauntSCT = L["TauntUsedMessageSCT"],
+        mocking = L["MockingUsedMessage"],
+        mockingSCT = L["MockingUsedMessageSCT"],
         deathwish = L["DeathWishUsedMessage"],
         wall = L["WallUsedMessage"],
         stand = L["StandUsedMessage"],
@@ -331,6 +334,19 @@ function Tankalyze:OnInitialize()
             end,
             order = 1,
           },
+          mocking = {
+            type = "toggle",
+            name = L["Mocking Blow"],
+            desc = L["Mocking Blow"],
+            icon = "Interface\\Icons\\Ability_Warrior_PunishingBlow",
+            get = function()
+              return self.db.char.announces.mocking
+            end,
+            set = function()
+              self.db.char.announces.mocking = not self.db.char.announces.mocking
+            end,
+            order = 2,
+          },
           deathwish = {
             type = "toggle",
             name = L["Death Wish"],
@@ -342,7 +358,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.deathwish = not self.db.char.announces.deathwish
             end,
-            order = 2,
+            order = 3,
           },
           wall = {
             type = "toggle",
@@ -355,7 +371,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.wall = not self.db.char.announces.wall
             end,
-            order = 3,
+            order = 4,
           },
           stand = {
             type = "toggle",
@@ -368,7 +384,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.stand = not self.db.char.announces.stand
             end,
-            order = 4,
+            order = 5,
           },
           gem = {
             type = "toggle",
@@ -381,7 +397,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.gem = not self.db.char.announces.gem
             end,
-            order = 5,
+            order = 6,
           },
           shout = {
             type = "toggle",
@@ -394,7 +410,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.shout = not self.db.char.announces.shout
             end,
-            order = 6,
+            order = 7,
           },
           roar = {
             type = "toggle",
@@ -407,7 +423,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.roar = not self.db.char.announces.roar
             end,
-            order = 7,
+            order = 8,
           },
           type = {
             type = "text",
@@ -458,6 +474,20 @@ function Tankalyze:OnInitialize()
                 usage = "<any string>",
                 order = 1,
               },
+              mocking = {
+                type = "text",
+                name = L["Mocking Blow"],
+                desc = L["MessagesInfo"],
+                icon = "Interface\\Icons\\Ability_Warrior_PunishingBlow",
+                get = function()
+                  return self.db.char.announces.messages.mocking
+                end,
+                set = function(arg1)
+                  self.db.char.announces.messages.mocking = arg1
+                end,
+                usage = "<any string>",
+                order = 2,
+              },
               deathwish = {
                 type = "text",
                 name = L["Death Wish"],
@@ -470,7 +500,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.deathwish = arg1
                 end,
                 usage = "<any string>",
-                order = 2,
+                order = 3,
               },
               wall = {
                 type = "text",
@@ -484,7 +514,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.wall = arg1
                 end,
                 usage = "<any string>",
-                order = 3,
+                order = 4,
               },
               stand = {
                 type = "text",
@@ -498,7 +528,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.stand = arg1
                 end,
                 usage = "<any string>",
-                order = 4,
+                order = 5,
               },
               gem = {
                 type = "text",
@@ -512,7 +542,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.gem = arg1
                 end,
                 usage = "<any string>",
-                order = 5,
+                order = 6,
               },
               shout = {
                 type = "text",
@@ -526,7 +556,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.shout = arg1
                 end,
                 usage = "<any string>",
-                order = 6,
+                order = 7,
               },
               roar = {
                 type = "text",
@@ -540,7 +570,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.roar = arg1
                 end,
                 usage = "<any string>",
-                order = 7,
+                order = 8,
               },
             },
           },
@@ -949,6 +979,9 @@ function Tankalyze:UNIT_CASTEVENT(casterGuid,targetGuid,type,sId,sCastTime)
 		end
   elseif (sName == L["Mocking Blow"]) then
     tried_vs = targetGuid
+    if self.db.char.announces.mocking then
+    	self:AnnounceTaunt(self.db.char.announces.messages.mocking, self.db.char.announces.messages.mockingSCT)
+		end
   elseif (sName == L["Death Wish"]) then
     if self.db.char.announces.deathwish and not self.db.char.mainTank then
       self:AnnounceInfo(self.db.char.announces.messages.deathwish)
