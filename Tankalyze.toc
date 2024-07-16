@@ -1,5 +1,5 @@
 ## Interface: 11200
-## Title: Tankalyze |cff7fff7f -Ace2-|r
+## Title: [SuperWoW] Tankalyze |cff7fff7f -Ace2-|r
 ## Notes: Captures missed Taunts! (and some other nice to have tank additions)
 ## Author: Tristan, Roadblock
 ## Version: 1

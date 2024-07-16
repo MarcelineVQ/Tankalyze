@@ -11,6 +11,7 @@ local status = AceLibrary("SpellStatus-1.0")
 local dewdrop = AceLibrary("Dewdrop-2.0")
 local waterfall = AceLibrary("Waterfall-1.0")
 
+local player_guid = nil
 local _, playerclass = UnitClass("player")
 if ((playerclass ~= "WARRIOR") and (playerclass ~= "DRUID")) then
   DisableAddOn("Tankalyze")
@@ -46,7 +47,7 @@ function Tankalyze:OnInitialize()
   self:RegisterDefaults('char', {
     resists = {
       taunt = true,
-      growl = false,
+      growl = true,
       mocking = true,
       shout = false,
       roar = false,
@@ -69,11 +70,11 @@ function Tankalyze:OnInitialize()
     announces = {
       taunt = true,
       mocking = true,
-      wall = false,
-      stand = false,
-      gem = false,
-      shout = false,
-      roar = false,
+      wall = true,
+      stand = true,
+      gem = true,
+      shout = true,
+      roar = true,
       channel = "Tankalyze",
       type = "SAY", -- "GROUP_RW", "GROUP", "RAID", "PARTY", "CHANNEL", "YELL", "SAY", "DEBUG"
       messages = {
@@ -91,6 +92,8 @@ function Tankalyze:OnInitialize()
     },
     
     grouponly = true,
+    removesalv = false,
+    removesalv_notify = true,
 
     alertSelf = false,
     sct = false,
@@ -133,9 +136,23 @@ function Tankalyze:OnInitialize()
         end,
         order = 3,
       },
+      removesalv = {
+        type = "toggle",
+        name = L["RemoveSalvation"],
+        desc = L["RemoveSalvationDesc"],
+        -- icon = "Interface\\Icons\\Spell_Nature_Reincarnation",
+        get = function()
+          return self.db.char.removesalv
+        end,
+        set = function()
+          self.db.char.removesalv = not self.db.char.removesalv
+          Tankalyze:CheckSalvation()
+        end,
+        order = 4,
+      },
       resists = {
         type = "group",
-        order = 4,
+        order = 5,
         name = L["Resists"],
         desc = L["Settings for resists"],
         --icon = "Interface\\Icons\\Spell_Nature_Reincarnation",
@@ -316,7 +333,7 @@ function Tankalyze:OnInitialize()
       },
       announces = {
         type = "group",
-        order = 5,
+        order = 6,
         name = L["Announces"],
         desc = L["Settings for announces"],
         --icon = "Interface\\Icons\\Spell_Holy_AshesToAshes",
@@ -578,8 +595,8 @@ function Tankalyze:OnInitialize()
       },
       mainTankMode = {
         type = "group",
-        name = "Main Tank Mode",
-        desc = "Announces misses,parries,dodges at fight start",
+        name = L["MainTankMode"],
+        desc = L["MainTankModeDesc"],
         icon = "Interface\\Icons\\Ability_Warrior_DefensiveStance",
         args = {
           mainTank = {
@@ -618,6 +635,19 @@ function Tankalyze:OnInitialize()
       mspacer1 = {
         type = "header",
         order = 9,
+      },
+      removesalv_notify = {
+        type = "toggle",
+        name = L["NotifySalvationRemoval"],
+        desc = L["NotifySalvationRemovalDesc"],
+        icon = "Interface\\Icons\\Spell_Holy_SealOfSalvation",
+        get = function()
+          return self.db.char.removesalv_notify
+        end,
+        set = function()
+          self.db.char.removesalv_notify = not self.db.char.removesalv_notify
+        end,
+        order = 10,
       },
       alertSelf = {
         type = "toggle",
@@ -792,19 +822,16 @@ function Tankalyze:OnEnable()
   -- CHAT_MSG_SPELL_SELF_DAMAGE:Your Taunt failed. Chromatic Dragonspawn is immune.
   -- CHAT_MSG_SPELL_SELF_DAMAGE:Your Challenging Shout failed. Chromatic Dragonspawn is immune.
   -- CHAT_MSG_SPELL_SELF_DAMAGE:Your Taunt was resisted by Chromatic Dragonspawn.
-  self:RegisterEvent("CHAT_MSG_SPELL_SELF_DAMAGE") -- Taunt, Growl & Mocking should stay in here
   -- self:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_CREATURE_DAMAGE") -- Challenging Shout & Challenging Roar?
   -- self:RegisterEvent("SpellStatus_SpellCastInstant") -- SpellStatusMixin
-  self:RegisterEvent("UNIT_CASTEVENT") -- SpellStatusMixin
-  self:RegisterEvent("CHAT_MSG_COMBAT_SELF_MISSES") -- SpellStatusMixin
-  self:RegisterEvent("PLAYER_REGEN_DISABLED") -- SpellStatusMixin
-  -- self:RegisterEvent("PLAYER_REGEN_ENABLED") -- SpellStatusMixin
-  -- self:RegisterEvent("CHAT_MSG_SPELL_PARTY_DAMAGE") -- group member taunts (does it fire for raid member not in my party?)
-  -- self:RegisterEvent("CHAT_MSG_SPELL_FRIENDLYPLAYER_DAMAGE") -- friendly player taunts
-  -- self:RegisterEvent("CHAT_MSG_SPELL_PET_DAMAGE") -- pet taunts
+  self:RegisterEvent("CHAT_MSG_SPELL_SELF_DAMAGE") -- Taunt, Growl & Mocking should stay in here
+  self:RegisterEvent("UNIT_CASTEVENT")
+  self:RegisterEvent("CHAT_MSG_COMBAT_SELF_MISSES")
+  self:RegisterEvent("PLAYER_REGEN_DISABLED") -- setting combat start timer, salv removal
+  self:RegisterEvent("PLAYER_ENTERING_WORLD") -- setting player guid, salv removal
+  self:RegisterEvent("PLAYER_AURAS_CHANGED") -- savl removal
   self:RegisterEvent("ONE_HANDED_MISSES")
   self:RegisterEvent("TRACKING_TIME_ENDED")
-  -- self:RegisterEvent("SPECIAL_MISSES")
 end
 
 --[[ *** Do stuff when disabled? *** ]]
@@ -828,14 +855,50 @@ end
 local in_combat = false
 local tried_vs = nil
 
+-- function Tankalyze:Print(msg)
+--   DEFAULT_CHAT_FRAME:AddMessage(msg)
+-- end
+
+-- efficiecy-wise this could use a counter to check if buff count changed
+function Tankalyze:CheckSalvation()
+  if not (self.db.char.removesalv or self.db.char.mainTank) then return end
+
+  local c = 0
+  while GetPlayerBuff(c,"HELPFUL") ~= -1 do
+    local id = GetPlayerBuffID(c)
+    -- print(c .. " " .. id)
+    -- if id == 25895 or id == 1038 or id == 12970 or id == 25289 then
+    if id == 25895 or id == 1038 then
+      CancelPlayerBuff(c)
+      if self.db.char.removesalv_notify then
+        DEFAULT_CHAT_FRAME:AddMessage("Tankalyze: Cancelled [|cFF8FB9D0"..SpellInfo(id).."|r]")
+      end
+      return
+    end
+    c = c+1
+  end
+end
+
 function Tankalyze:PLAYER_REGEN_DISABLED()
   in_combat = true
   Tankalyze:ScheduleEvent("TRACKING_TIME_ENDED",self.db.char.mainTankDuration)
+  Tankalyze:CheckSalvation()
 end
 
 function Tankalyze:TRACKING_TIME_ENDED()
   -- print("itended")
   in_combat = false
+end
+
+function Tankalyze:PLAYER_ENTERING_WORLD()
+  _,player_guid = UnitExists("player")
+  if player_guid then
+    Tankalyze:CheckSalvation()
+  end
+end
+
+function Tankalyze:PLAYER_AURAS_CHANGED()
+  Tankalyze:CheckSalvation()
 end
 
 function Tankalyze:ONE_HANDED_MISSES(ability,type,target)
@@ -968,7 +1031,6 @@ end
 -- todo: convert these to simply use id's
 function Tankalyze:UNIT_CASTEVENT(casterGuid,targetGuid,type,sId,sCastTime)
   local sName, sRank = SpellInfo(sId)
-  local _,player_guid = UnitExists("player")
   if arg3 ~= "CAST" then return end
   if casterGuid ~= player_guid then return end
 
@@ -1093,6 +1155,10 @@ end
 
 function Tankalyze:AnnounceInfo(msg)
   self:Announce(msg, self.db.char.announces.type, self.db.char.announces.channel)
+end
+
+function Tankalyze:Validate_GroupOnly()
+  return self.db.char.grouponly and not (GetNumPartyMembers() + GetNumRaidMembers() > 0)
 end
 
 function Tankalyze:Announce(msg, type, channel)

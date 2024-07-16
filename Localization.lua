@@ -50,6 +50,11 @@ L:RegisterTranslations("enUS", function() return {
 	["Group Only"] = true,
 	["Active only when player in group"] = true,
 
+	["RemoveSalvation"] = "Remove Salvation",
+	["RemoveSalvationDesc"] = "Remove threat-reduction buffs.\nAutomatically on in Main Tank mode.",
+	["NotifySalvationRemoval"] = "Notify Salvation Removal",
+	["NotifySalvationRemovalDesc"] = "Print to chatbox when salvation is removed.",
+
 	["Resists"] = true,
 	["Settings for resists"] = true,
 	["Resists Messages"] = true,
@@ -90,6 +95,9 @@ L:RegisterTranslations("enUS", function() return {
 	["go me"] = true,
 	["GG, I just put rend on a worldboss!"] = true,
 	
+	["MainTankMode"] = true,
+	["MainTankModeDesc"] = "Announces misses, parries, dodges at fight start.\nDeathwish announce is on in this mode.\nSalvation removal is on in this mode.",
+
 	["Test"] = true,
 	["Send test messages with current settings"] = true,
 	
