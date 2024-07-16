@@ -38,7 +38,7 @@ L:RegisterTranslations("enUS", function() return {
 	["MessagesInfoNoTarget"] = "Type the text you want to use for the setting",
 	["TauntUsedMessage"] = ">>> Taunted {t} {m} <<<",
 	["TauntUsedMessageSCT"] = ">>> Taunted {t} <<<",
-	["MockingUsedMessage"] = ">>> Mockinging Blow on {t} {m} <<<",
+	["MockingUsedMessage"] = ">>> Mocking Blow on {t} {m} <<<",
 	["MockingUsedMessageSCT"] = ">>> Mocking {t} <<<",
 	["WallUsedMessage"] = ">>> Shield Walling <<<",
 	["DeathWishUsedMessage"] = ">>> Death Wish used <<<",
