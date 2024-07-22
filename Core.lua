@@ -17,6 +17,9 @@ if ((playerclass ~= "WARRIOR") and (playerclass ~= "DRUID")) then
   DisableAddOn("Tankalyze")
   return
 end
+local at_combat_start = false
+local in_combat = false
+local tried_vs = nil
 
 Tankalyze.hasIcon  = "Interface\\AddOns\\Tankalyze\\icon"
 Tankalyze.defaultPosition = "CENTER"
@@ -827,6 +830,7 @@ function Tankalyze:OnEnable()
   self:RegisterEvent("CHAT_MSG_SPELL_SELF_DAMAGE") -- Taunt, Growl & Mocking should stay in here
   self:RegisterEvent("UNIT_CASTEVENT")
   self:RegisterEvent("CHAT_MSG_COMBAT_SELF_MISSES")
+  self:RegisterEvent("PLAYER_REGEN_ENABLED") -- setting combat start timer, salv removal
   self:RegisterEvent("PLAYER_REGEN_DISABLED") -- setting combat start timer, salv removal
   self:RegisterEvent("PLAYER_ENTERING_WORLD") -- setting player guid, salv removal
   self:RegisterEvent("PLAYER_AURAS_CHANGED") -- savl removal
@@ -852,9 +856,6 @@ function Tankalyze:CHAT_MSG_SPELL_PARTY_DAMAGE()
   -- Taunt, Growl
 end
 
-local in_combat = false
-local tried_vs = nil
-
 -- function Tankalyze:Print(msg)
 --   DEFAULT_CHAT_FRAME:AddMessage(msg)
 -- end
@@ -862,6 +863,7 @@ local tried_vs = nil
 -- efficiecy-wise this could use a counter to check if buff count changed
 function Tankalyze:CheckSalvation()
   if not (self.db.char.removesalv or self.db.char.mainTank) then return end
+  if not (in_combat or self.db.char.mainTank) then return end
 
   local c = 0
   while GetPlayerBuff(c,"HELPFUL") ~= -1 do
@@ -871,7 +873,7 @@ function Tankalyze:CheckSalvation()
     if id == 25895 or id == 1038 then
       CancelPlayerBuff(c)
       if self.db.char.removesalv_notify then
-        DEFAULT_CHAT_FRAME:AddMessage("Tankalyze: Cancelled [|cFF8FB9D0"..SpellInfo(id).."|r]")
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Tankalyze:|r Cancelled [|cFF8FB9D0"..SpellInfo(id).."|r]")
       end
       return
     end
@@ -880,14 +882,19 @@ function Tankalyze:CheckSalvation()
 end
 
 function Tankalyze:PLAYER_REGEN_DISABLED()
+  at_combat_start = true
   in_combat = true
   Tankalyze:ScheduleEvent("TRACKING_TIME_ENDED",self.db.char.mainTankDuration)
   Tankalyze:CheckSalvation()
 end
 
+function Tankalyze:PLAYER_REGEN_ENABLED()
+  in_combat = false
+end
+
 function Tankalyze:TRACKING_TIME_ENDED()
   -- print("itended")
-  in_combat = false
+  at_combat_start = false
 end
 
 function Tankalyze:PLAYER_ENTERING_WORLD()
@@ -902,7 +909,7 @@ function Tankalyze:PLAYER_AURAS_CHANGED()
 end
 
 function Tankalyze:ONE_HANDED_MISSES(ability,type,target)
-  if not in_combat or not self.db.char.mainTank then return end
+  if not at_combat_start or not self.db.char.mainTank then return end
   local _,_,OH_ID = string.find(GetInventoryItemLink("player", 17) or "","item:(%d+)")
   _, _, _, _, _, itemType = GetItemInfo(OH_ID or "")
 

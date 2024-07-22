@@ -51,7 +51,7 @@ L:RegisterTranslations("enUS", function() return {
 	["Active only when player in group"] = true,
 
 	["RemoveSalvation"] = "Remove Salvation",
-	["RemoveSalvationDesc"] = "Remove threat-reduction buffs.\nAutomatically on in Main Tank mode.",
+	["RemoveSalvationDesc"] = "Remove threat-reduction buffs in combat.\nAutomatically on in Main Tank mode.",
 	["NotifySalvationRemoval"] = "Notify Salvation Removal",
 	["NotifySalvationRemovalDesc"] = "Print to chatbox when salvation is removed.",
 
