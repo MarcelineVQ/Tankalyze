@@ -850,6 +850,8 @@ local TauntFails = {
 local GrowlFails = {
   "ResistGrowlRX","ImmuneGrowlRX1","ImmuneGrowlRX2","MissGrowlRX"
 }
+local taunt_whys = {"resisted", "immune", "immune", "missed"}
+local mocking_whys = {"missed", "dodged", "parried", "immune"}
 --[[ *** EVENTS *** ]]
 function Tankalyze:CHAT_MSG_SPELL_PARTY_DAMAGE()
   --print(event..":"..tostring(arg1)..":"..tostring(arg2))
@@ -913,16 +915,21 @@ function Tankalyze:ONE_HANDED_MISSES(ability,type,target)
   local _,_,OH_ID = string.find(GetInventoryItemLink("player", 17) or "","item:(%d+)")
   _, _, _, _, _, itemType = GetItemInfo(OH_ID or "")
 
+  -- TODO: localize
   local onehanded = itemType == nil or itemType == "Shields" or itemType == "Miscellaneous"
-  if ability == "MELEE" and onehanded then ability = "Melee Hit" end
+  local chan = self.db.char.resists.type
+  if ability == "MELEE" and onehanded then
+    ability = "Melee Hit"
+    chan = self.db.char.announces.type
+  end
   if type == "MISS" and ability ~= "MELEE" then
-    self:Announce(">>> "..ability.." missed "..target.." <<<", "YELL")
+    self:Announce(">>> "..ability.." missed "..target.." <<<", chan)
   elseif type == "DODGE" and ability ~= "MELEE" then
-    self:Announce(">>> "..ability.." was dodged by "..target.." <<<", "YELL")
+    self:Announce(">>> "..ability.." was dodged by "..target.." <<<", chan)
   elseif type == "PARRY" and ability ~= "MELEE" then
-    self:Announce(">>> "..ability.." was parried by "..target.." <<<", "YELL")
+    self:Announce(">>> "..ability.." was parried by "..target.." <<<", chan)
   elseif type == "IMMUNE" and ability ~= "MELEE" then
-    self:Announce(">>> "..ability.." failed, "..target.." was Immune <<<", "YELL")
+    self:Announce(">>> "..ability.." failed, "..target.." was Immune <<<", chan)
   end
 end
 
@@ -930,10 +937,10 @@ function Tankalyze:CHAT_MSG_COMBAT_SELF_MISSES(msg)
   -- print(msg)
 
   local Misses = {
-    "You miss (.+)%.",
-    "You attack. (.+) parries%.",
-    "You attack. (.+) dodges%.",
-    "You attack but (.+) is immune%.",
+    L["MeleeMiss"],
+    L["MeleeDodge"],
+    L["MeleeParry"],
+    L["MeleeFail"],
   }
   local ix,target
   for i,v in ipairs(Misses) do
@@ -981,38 +988,45 @@ function Tankalyze:CHAT_MSG_SPELL_SELF_DAMAGE(msg)
     self.db.char.logRoar[time()] = "(1) "..msg
   end
 
-  if (UsedMockingBlow) then
-    local MockingBlowHit = string.find(msg, L["MockingBlowSuccessRX"])
+  -- handled with general melee below
+  -- if (UsedMockingBlow) then
+  --   local MockingBlowHit = string.find(msg, L["MockingBlowSuccessRX"])
+  --   -- check here for failure and report why
+  --   -- ["TauntMessage"] = ">>> Taunt failed against: {t} ({l}) <<<",
+  --   -- ["TauntMessage"] = ">>> Taunt {r} against: {t} ({l}) <<<",
 
-    if (not MockingBlowHit) then
-      self:AnnounceResist(self.db.char.resists.messages.mocking, self.db.char.resists.messages.mockingSCT)
-      return
-    end
-  end
+  --   if (not MockingBlowHit) then
+  --     self:AnnounceResist(self.db.char.resists.messages.mocking, self.db.char.resists.messages.mockingSCT)
+  --     return
+  --   end
+  -- end
 
   local TauntFailed = false
-  for _,key in ipairs(TauntFails) do
+  for i,key in ipairs(TauntFails) do
     local _,_,TauntFailed = string.find(msg,L[key])
-    if (TauntFailed) then 
-      self:AnnounceResist(self.db.char.resists.messages.taunt, self.db.char.resists.messages.tauntSCT)
+    -- check here for failure and report why
+    -- ["TauntMessage"] = ">>> Taunt failed against: {t} ({l}) <<<",
+    -- ["TauntMessage"] = ">>> Taunt {r} against: {t} ({l}) <<<",
+    if (TauntFailed) then
+      self:AnnounceResist(self.db.char.resists.messages.taunt, self.db.char.resists.messages.tauntSCT, taunt_whys[i])
       return
     end
   end
   local GrowlFailed = false
-  for _,key in ipairs(GrowlFails) do
+  for i,key in ipairs(GrowlFails) do
     local _,_,GrowlFailed = string.find(msg,L[key])
     if (GrowlFailed) then  
-      self:AnnounceResist(self.db.char.resists.messages.growl, self.db.char.resists.messages.growlSCT)
+      self:AnnounceResist(self.db.char.resists.messages.growl, self.db.char.resists.messages.growlSCT, taunt_whys[i])
       return
     end
   end
 
   -- check for general yellow fails
   local Misses = {
-    "Your (.+) missed (.+)%.",
-    "Your (.+) was dodged by (.+)%.",
-    "Your (.+) is parried by (.+)%.",
-    "Your (.+) failed%. (.+) is immune%.",
+    L["MeleeAbilityMiss"],
+    L["MeleeAbilityDodge"],
+    L["MeleeAbilityParry"],
+    L["MeleeAbilityFail"],
   }
   local ix,ability,target
   for i,v in ipairs(Misses) do
@@ -1023,7 +1037,9 @@ function Tankalyze:CHAT_MSG_SPELL_SELF_DAMAGE(msg)
     end
   end
 
-  if ix == 1 then
+  if ability == L["Mocking Blow"] and ix then
+    self:AnnounceResist(self.db.char.resists.messages.mocking, self.db.char.resists.messages.mockingSCT, mocking_whys[ix])
+  elseif ix == 1 then
     Tankalyze:TriggerEvent("ONE_HANDED_MISSES",ability,"MISS",target)
   elseif ix == 2 then
     Tankalyze:TriggerEvent("ONE_HANDED_MISSES",ability,"DODGE",target)
@@ -1123,8 +1139,9 @@ function Tankalyze:AnnounceTaunt(msg, msgSCT)
   self:Announce(alertString, self.db.char.announces.type, self.db.char.announces.channel)
 end
 
-function Tankalyze:AnnounceResist(msg, msgSCT)
+function Tankalyze:AnnounceResist(msg, msgSCT, why)
   local target = tried_vs or "target"
+  local Why = why or "failed"
   local TargetName = UnitName(target)
   local TargetLevel = UnitLevel(target) -- If the unit's level is unknown, i.e. a Level ?? target, or is a special boss, UnitLevel() will return -1
   local TargetClassification = UnitClassification(target) -- "worldboss", "rareelite", "elite", "rare" or "normal"
@@ -1145,8 +1162,8 @@ function Tankalyze:AnnounceResist(msg, msgSCT)
     TargetLevel = L["go me"]
   end
 
-  local alertString = string.gsub(string.gsub(msg, "{t}", TargetName), "{l}", TargetLevel)
-  local alertStringShort = string.gsub(string.gsub(msgSCT, "{t}", TargetName), "{l}", TargetLevel)
+  local alertString = string.gsub(string.gsub(string.gsub(msg, "{r}", Why), "{t}", TargetName), "{l}", TargetLevel)
+  local alertStringShort = string.gsub(string.gsub(string.gsub(msgSCT, "{r}", Why), "{t}", TargetName), "{l}", TargetLevel)
 
   if (self.db.char.alertSelf) then
     UIErrorsFrame:AddMessage(alertString)
