@@ -3,16 +3,18 @@
   - Challenging Shout (Challenging Roar)
   - (?) Whisper Target on fail
   - (?) Nightfall
+  - countdown saying when challenging ends, cancel it if someone else sends a challenge line
 ]]
 --[[ *** Create Ace2 AddOn *** ]]
 Tankalyze = AceLibrary("AceAddon-2.0"):new("AceEvent-2.0", "AceConsole-2.0", "AceDB-2.0", "AceHook-2.1", "AceDebug-2.0", "FuBarPlugin-2.0")
 local L = AceLibrary("AceLocale-2.2"):new("Tankalyze")
-local status = AceLibrary("SpellStatus-1.0")
+-- local status = AceLibrary("SpellStatus-1.0")
 local dewdrop = AceLibrary("Dewdrop-2.0")
 local waterfall = AceLibrary("Waterfall-1.0")
 
 local player_guid = nil
 local _, playerclass = UnitClass("player")
+-- if ((playerclass ~= "WARRIOR") and (playerclass ~= "DRUID") and (playerclass ~= "PALADIN")) then
 if ((playerclass ~= "WARRIOR") and (playerclass ~= "DRUID")) then
   DisableAddOn("Tankalyze")
   return
@@ -20,6 +22,7 @@ end
 local at_combat_start = false
 local in_combat = false
 local tried_vs = nil
+local spellstore = {}
 
 Tankalyze.hasIcon  = "Interface\\AddOns\\Tankalyze\\icon"
 Tankalyze.defaultPosition = "CENTER"
@@ -54,6 +57,7 @@ function Tankalyze:OnInitialize()
       mocking = true,
       shout = false,
       roar = false,
+      judgement = true,
       channel = "Tankalyze",
       type = "YELL", -- "GROUP_RW", "GROUP", "RAID", "PARTY", "CHANNEL", "YELL", "SAY", "DEBUG"
       messages = {
@@ -67,6 +71,8 @@ function Tankalyze:OnInitialize()
         shoutSCT = L["ShoutMessageSCT"],
         roar = L["RoarMessage"],
         roarSCT = L["RoarMessageSCT"],
+        judgement = L["JudgementMessage"],
+        judgementSCT = L["JudgementMessageSCT"],
       },
     },
     
@@ -149,13 +155,27 @@ function Tankalyze:OnInitialize()
         end,
         set = function()
           self.db.char.removesalv = not self.db.char.removesalv
-          Tankalyze:CheckSalvation()
+          -- Tankalyze:CheckSalvation()
         end,
         order = 4,
       },
+      -- stance_removesalv = { -- TODO stance-based salve removal, which only occurs at battle start?
+      --   type = "toggle",
+      --   name = L["RemoveSalvation"],
+      --   desc = L["RemoveSalvationDesc"],
+      --   -- icon = "Interface\\Icons\\Spell_Nature_Reincarnation",
+      --   get = function()
+      --     return self.db.char.removesalv
+      --   end,
+      --   set = function()
+      --     self.db.char.removesalv = not self.db.char.removesalv
+      --     Tankalyze:CheckSalvation()
+      --   end,
+      --   order = 5,
+      -- },
       resists = {
         type = "group",
-        order = 5,
+        order = 6,
         name = L["Resists"],
         desc = L["Settings for resists"],
         --icon = "Interface\\Icons\\Spell_Nature_Reincarnation",
@@ -185,6 +205,19 @@ function Tankalyze:OnInitialize()
               self.db.char.resists.growl = not self.db.char.resists.growl
             end,
             order = 2,
+          },
+          judgement = {
+            type = "toggle",
+            name = L["Judgement of Justice"],
+            desc = L["Announces resisted Judgement of Justice"],
+            icon = "Interface\\Icons\\Spell_Holy_SealOfWrath",
+            get = function()
+              return self.db.char.resists.judgement
+            end,
+            set = function()
+              self.db.char.resists.judgement = not self.db.char.resists.judgement
+            end,
+            order = 3,
           },
           mocking = {
             type = "toggle",
@@ -288,6 +321,20 @@ function Tankalyze:OnInitialize()
                 usage = "<any string>",
                 order = 2,
               },
+              judgement = {
+                type = "text",
+                name = L["Judgement of Justice"],
+                desc = L["MessagesInfo"],
+                icon = "Interface\\Icons\\Spell_Holy_SealOfWrath",
+                get = function()
+                  return self.db.char.resists.messages.judgement
+                end,
+                set = function(arg1)
+                  self.db.char.resists.messages.judgement = arg1
+                end,
+                usage = "<any string>",
+                order = 3,
+              },
               mocking = {
                 type = "text",
                 name = L["Mocking Blow"],
@@ -300,12 +347,12 @@ function Tankalyze:OnInitialize()
                   self.db.char.resists.messages.mocking = arg1
                 end,
                 usage = "<any string>",
-                order = 3,
+                order = 4,
               },
               shout = {
                 type = "text",
                 name = L["Challenging Shout"],
-                desc = L["MessagesInfo"],
+                desc = L["MessagesInfoNoTarget"],
                 icon = "Interface\\Icons\\Ability_BullRush",
                 get = function()
                   return self.db.char.resists.messages.shout
@@ -314,12 +361,12 @@ function Tankalyze:OnInitialize()
                   self.db.char.resists.messages.shout = arg1
                 end,
                 usage = "<any string>",
-                order = 4,
+                order = 5,
               },
               roar = {
                 type = "text",
                 name = L["Challenging Roar"],
-                desc = L["MessagesInfo"],
+                desc = L["MessagesInfoNoTarget"],
                 icon = "Interface\\Icons\\Ability_Druid_ChallangingRoar",
                 get = function()
                   return self.db.char.resists.messages.roar
@@ -328,7 +375,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.resists.messages.roar = arg1
                 end,
                 usage = "<any string>",
-                order = 5,
+                order = 6,
               },
             },
           },
@@ -336,7 +383,7 @@ function Tankalyze:OnInitialize()
       },
       announces = {
         type = "group",
-        order = 6,
+        order = 7,
         name = L["Announces"],
         desc = L["Settings for announces"],
         --icon = "Interface\\Icons\\Spell_Holy_AshesToAshes",
@@ -354,6 +401,32 @@ function Tankalyze:OnInitialize()
             end,
             order = 1,
           },
+          growl = {
+            type = "toggle",
+            name = L["Growl"],
+            desc = L["Growl"],
+            icon = "Interface\\Icons\\Ability_Physical_Taunt",
+            get = function()
+              return self.db.char.announces.growl
+            end,
+            set = function()
+              self.db.char.announces.growl = not self.db.char.announces.growl
+            end,
+            order = 2,
+          },
+          judgement = {
+            type = "toggle",
+            name = L["Judgement of Justice"],
+            desc = L["Judgement of Justice"],
+            icon = "Interface\\Icons\\Spell_Holy_SealOfWrath",
+            get = function()
+              return self.db.char.announces.judgement
+            end,
+            set = function()
+              self.db.char.announces.judgement = not self.db.char.announces.judgement
+            end,
+            order = 3,
+          },
           mocking = {
             type = "toggle",
             name = L["Mocking Blow"],
@@ -365,7 +438,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.mocking = not self.db.char.announces.mocking
             end,
-            order = 2,
+            order = 12,
           },
           deathwish = {
             type = "toggle",
@@ -378,7 +451,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.deathwish = not self.db.char.announces.deathwish
             end,
-            order = 3,
+            order = 13,
           },
           wall = {
             type = "toggle",
@@ -391,7 +464,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.wall = not self.db.char.announces.wall
             end,
-            order = 4,
+            order = 14,
           },
           stand = {
             type = "toggle",
@@ -404,7 +477,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.stand = not self.db.char.announces.stand
             end,
-            order = 5,
+            order = 15,
           },
           gem = {
             type = "toggle",
@@ -417,7 +490,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.gem = not self.db.char.announces.gem
             end,
-            order = 6,
+            order = 16,
           },
           shout = {
             type = "toggle",
@@ -430,7 +503,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.shout = not self.db.char.announces.shout
             end,
-            order = 7,
+            order = 17,
           },
           roar = {
             type = "toggle",
@@ -443,7 +516,7 @@ function Tankalyze:OnInitialize()
             set = function()
               self.db.char.announces.roar = not self.db.char.announces.roar
             end,
-            order = 8,
+            order = 18,
           },
           type = {
             type = "text",
@@ -494,6 +567,34 @@ function Tankalyze:OnInitialize()
                 usage = "<any string>",
                 order = 1,
               },
+              growl = {
+                type = "text",
+                name = L["Growl"],
+                desc = L["MessagesInfo"],
+                icon = "Interface\\Icons\\Ability_Physical_Taunt",
+                get = function()
+                  return self.db.char.announces.messages.growl
+                end,
+                set = function(arg1)
+                  self.db.char.announces.messages.growl = arg1
+                end,
+                usage = "<any string>",
+                order = 2,
+              },
+              judgement = {
+                type = "text",
+                name = L["Judgement of Justice"],
+                desc = L["MessagesInfo"],
+                icon = "Interface\\Icons\\Spell_Holy_SealOfWrath",
+                get = function()
+                  return self.db.char.announces.messages.judgement
+                end,
+                set = function(arg1)
+                  self.db.char.announces.messages.judgement = arg1
+                end,
+                usage = "<any string>",
+                order = 3,
+              },
               mocking = {
                 type = "text",
                 name = L["Mocking Blow"],
@@ -506,7 +607,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.mocking = arg1
                 end,
                 usage = "<any string>",
-                order = 2,
+                order = 12,
               },
               deathwish = {
                 type = "text",
@@ -520,7 +621,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.deathwish = arg1
                 end,
                 usage = "<any string>",
-                order = 3,
+                order = 13,
               },
               wall = {
                 type = "text",
@@ -534,7 +635,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.wall = arg1
                 end,
                 usage = "<any string>",
-                order = 4,
+                order = 14,
               },
               stand = {
                 type = "text",
@@ -548,7 +649,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.stand = arg1
                 end,
                 usage = "<any string>",
-                order = 5,
+                order = 15,
               },
               gem = {
                 type = "text",
@@ -562,7 +663,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.gem = arg1
                 end,
                 usage = "<any string>",
-                order = 6,
+                order = 16,
               },
               shout = {
                 type = "text",
@@ -576,7 +677,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.shout = arg1
                 end,
                 usage = "<any string>",
-                order = 7,
+                order = 17,
               },
               roar = {
                 type = "text",
@@ -590,7 +691,7 @@ function Tankalyze:OnInitialize()
                   self.db.char.announces.messages.roar = arg1
                 end,
                 usage = "<any string>",
-                order = 8,
+                order = 18,
               },
             },
           },
@@ -633,7 +734,7 @@ function Tankalyze:OnInitialize()
             order = 21,
           },
         },
-        order = 6,
+        order = 8,
       },
       mspacer1 = {
         type = "header",
@@ -740,33 +841,87 @@ function Tankalyze:OnInitialize()
   
   local _, englishClass = UnitClass("player")
   if (englishClass == "WARRIOR") then
-    -- Ugly hide Druid options
+    -- hide Paladin options
+    self.opts.args.resists.args.judgement = nil
+    self.opts.args.announces.args.judgement = nil
+    self.opts.args.resists.args.messages.args.judgement = nil
+    self.opts.args.announces.args.messages.args.judgement = nil
+    -- hide Druid options
     self.opts.args.resists.args.growl = nil
     self.opts.args.resists.args.roar = nil
     self.opts.args.resists.args.messages.args.growl = nil
     self.opts.args.resists.args.messages.args.roar = nil
-    
+
     self.opts.args.announces.args.roar = nil
+    self.opts.args.announces.args.growl = nil
     self.opts.args.announces.args.messages.args.roar = nil
+    self.opts.args.announces.args.messages.args.growl = nil
   elseif (englishClass == "DRUID") then
-    -- Ugly hide Warrior options
+    -- hide Paladin options
+    self.opts.args.resists.args.judgement = nil
+    self.opts.args.announces.args.judgement = nil
+    self.opts.args.resists.args.messages.args.judgement = nil
+    self.opts.args.announces.args.messages.args.judgement = nil
+    -- hide Warrior options
     self.opts.args.resists.args.taunt = nil
     self.opts.args.resists.args.mocking = nil
     self.opts.args.resists.args.shout = nil
     self.opts.args.resists.args.messages.args.taunt = nil
     self.opts.args.resists.args.messages.args.mocking = nil
     self.opts.args.resists.args.messages.args.shout = nil
-    
+
     self.opts.args.announces.args.taunt = nil
     self.opts.args.announces.args.wall = nil
     self.opts.args.announces.args.stand = nil
     self.opts.args.announces.args.gem = nil
     self.opts.args.announces.args.shout = nil
+    self.opts.args.announces.args.mocking = nil
+    self.opts.args.announces.args.deathwish = nil
     self.opts.args.announces.args.messages.args.taunt = nil
     self.opts.args.announces.args.messages.args.wall = nil
     self.opts.args.announces.args.messages.args.stand = nil
     self.opts.args.announces.args.messages.args.gem = nil
     self.opts.args.announces.args.messages.args.shout = nil
+    self.opts.args.announces.args.messages.args.mocking = nil
+    self.opts.args.announces.args.messages.args.deathwish = nil
+  elseif (englishClass == "PALADIN") then
+    -- hide Paladin options, TODO: Not yet, sorry paladins, judgement taunt is weird
+    self.opts.args.resists.args.judgement = nil
+    self.opts.args.announces.args.judgement = nil
+    self.opts.args.resists.args.messages.args.judgement = nil
+    self.opts.args.announces.args.messages.args.judgement = nil
+    -- hide Druid options
+    self.opts.args.resists.args.growl = nil
+    self.opts.args.resists.args.roar = nil
+    self.opts.args.resists.args.messages.args.growl = nil
+    self.opts.args.resists.args.messages.args.roar = nil
+
+    self.opts.args.announces.args.growl = nil
+    self.opts.args.announces.args.roar = nil
+    self.opts.args.announces.args.messages.args.growl = nil
+    self.opts.args.announces.args.messages.args.roar = nil
+    -- hide Warrior options
+    self.opts.args.resists.args.taunt = nil
+    self.opts.args.resists.args.mocking = nil
+    self.opts.args.resists.args.shout = nil
+    self.opts.args.resists.args.messages.args.taunt = nil
+    self.opts.args.resists.args.messages.args.mocking = nil
+    self.opts.args.resists.args.messages.args.shout = nil
+
+    self.opts.args.announces.args.taunt = nil
+    self.opts.args.announces.args.wall = nil
+    self.opts.args.announces.args.stand = nil
+    self.opts.args.announces.args.gem = nil
+    self.opts.args.announces.args.shout = nil
+    self.opts.args.announces.args.mocking = nil
+    self.opts.args.announces.args.deathwish = nil
+    self.opts.args.announces.args.messages.args.taunt = nil
+    self.opts.args.announces.args.messages.args.wall = nil
+    self.opts.args.announces.args.messages.args.stand = nil
+    self.opts.args.announces.args.messages.args.gem = nil
+    self.opts.args.announces.args.messages.args.shout = nil
+    self.opts.args.announces.args.messages.args.mocking = nil
+    self.opts.args.announces.args.messages.args.deathwish = nil
   end
 
   --[[ Register chat commands ]]
@@ -836,6 +991,7 @@ function Tankalyze:OnEnable()
   self:RegisterEvent("PLAYER_AURAS_CHANGED") -- savl removal
   self:RegisterEvent("ONE_HANDED_MISSES")
   self:RegisterEvent("TRACKING_TIME_ENDED")
+  self:RegisterEvent("SALVATION_REMOVED")
 end
 
 --[[ *** Do stuff when disabled? *** ]]
@@ -849,6 +1005,9 @@ local TauntFails = {
 }
 local GrowlFails = {
   "ResistGrowlRX","ImmuneGrowlRX1","ImmuneGrowlRX2","MissGrowlRX"
+}
+local JudgementFails = {
+  "ResistJudgementRX","ImmuneJudgementRX1","ImmuneJudgementRX2","MissJudgementRX"
 }
 local taunt_whys = {"resisted", "immune", "immune", "missed"}
 local mocking_whys = {"missed", "dodged", "parried", "immune"}
@@ -874,8 +1033,8 @@ function Tankalyze:CheckSalvation()
     -- if id == 25895 or id == 1038 or id == 12970 or id == 25289 then
     if id == 25895 or id == 1038 then
       CancelPlayerBuff(c)
-      if self.db.char.removesalv_notify then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Tankalyze:|r Cancelled [|cFF8FB9D0"..SpellInfo(id).."|r]")
+      if not Tankalyze:IsEventScheduled("SALVATION_REMOVED") then
+        Tankalyze:ScheduleEvent("SALVATION_REMOVED",0.2,id)
       end
       return
     end
@@ -887,7 +1046,7 @@ function Tankalyze:PLAYER_REGEN_DISABLED()
   at_combat_start = true
   in_combat = true
   Tankalyze:ScheduleEvent("TRACKING_TIME_ENDED",self.db.char.mainTankDuration)
-  Tankalyze:CheckSalvation()
+  Tankalyze:CheckSalvation() -- combat has started, check salv
 end
 
 function Tankalyze:PLAYER_REGEN_ENABLED()
@@ -899,15 +1058,36 @@ function Tankalyze:TRACKING_TIME_ENDED()
   at_combat_start = false
 end
 
-function Tankalyze:PLAYER_ENTERING_WORLD()
-  _,player_guid = UnitExists("player")
-  if player_guid then
-    Tankalyze:CheckSalvation()
+function Tankalyze:SALVATION_REMOVED(id)
+  if self.db.char.removesalv_notify then
+    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Tankalyze:|r Cancelled [|cFF8FB9D0"..SpellInfo(id).."|r]")
   end
 end
 
+function Tankalyze:PLAYER_ENTERING_WORLD()
+  _,player_guid = UnitExists("player")
+  -- if player_guid then
+    -- Tankalyze:CheckSalvation()
+  -- end
+  -- fill spellstore to check against for ability misses
+  spellstore = {}
+  local i = 1
+  while true do
+    local name, rank, id = GetSpellName(i, BOOKTYPE_SPELL)
+    -- local name,tank,texture,minrange,maxrange = SpellInfo(id) 
+    if not name then
+        break
+    end
+
+    spellstore[name] = true
+
+    i = i + 1
+  end
+end
+
+-- mt always remove salv
 function Tankalyze:PLAYER_AURAS_CHANGED()
-  Tankalyze:CheckSalvation()
+  if self.db.char.mainTank then Tankalyze:CheckSalvation() end
 end
 
 function Tankalyze:ONE_HANDED_MISSES(ability,type,target)
@@ -1001,27 +1181,43 @@ function Tankalyze:CHAT_MSG_SPELL_SELF_DAMAGE(msg)
   --   end
   -- end
 
-  local TauntFailed = false
-  for i,key in ipairs(TauntFails) do
-    local _,_,TauntFailed = string.find(msg,L[key])
-    -- check here for failure and report why
-    -- ["TauntMessage"] = ">>> Taunt failed against: {t} ({l}) <<<",
-    -- ["TauntMessage"] = ">>> Taunt {r} against: {t} ({l}) <<<",
-    if (TauntFailed) then
-      self:AnnounceResist(self.db.char.resists.messages.taunt, self.db.char.resists.messages.tauntSCT, taunt_whys[i])
-      return
+  if self.db.char.resists.taunt then
+    local TauntFailed = false
+    for i,key in ipairs(TauntFails) do
+      local _,_,TauntFailed = string.find(msg,L[key])
+      -- check here for failure and report why
+      -- ["TauntMessage"] = ">>> Taunt failed against: {t} ({l}) <<<",
+      -- ["TauntMessage"] = ">>> Taunt {r} against: {t} ({l}) <<<",
+      if (TauntFailed) then
+        self:AnnounceResist(self.db.char.resists.messages.taunt, self.db.char.resists.messages.tauntSCT, taunt_whys[i])
+        return
+      end
     end
   end
-  local GrowlFailed = false
-  for i,key in ipairs(GrowlFails) do
-    local _,_,GrowlFailed = string.find(msg,L[key])
-    if (GrowlFailed) then  
-      self:AnnounceResist(self.db.char.resists.messages.growl, self.db.char.resists.messages.growlSCT, taunt_whys[i])
-      return
+  
+  if self.db.char.resists.growl then
+    local GrowlFailed = false
+    for i,key in ipairs(GrowlFails) do
+      local _,_,GrowlFailed = string.find(msg,L[key])
+      if (GrowlFailed) then  
+        self:AnnounceResist(self.db.char.resists.messages.growl, self.db.char.resists.messages.growlSCT, taunt_whys[i])
+        return
+      end
+    end
+  end
+  if self.db.char.resists.judgement then
+    local JudgementFailed = false
+    for i,key in ipairs(JudgementFails) do
+      local _,_,JudgementFailed = string.find(msg,L[key])
+      if (JudgementFailed) then
+        self:AnnounceResist(self.db.char.resists.messages.judgement, self.db.char.resists.messages.judgementSCT, taunt_whys[i])
+        return
+      end
     end
   end
 
   -- check for general yellow fails
+  -- TODO maybe check for resists too, e.g. exercism for a pulling paladin
   local Misses = {
     L["MeleeAbilityMiss"],
     L["MeleeAbilityDodge"],
@@ -1031,7 +1227,7 @@ function Tankalyze:CHAT_MSG_SPELL_SELF_DAMAGE(msg)
   local ix,ability,target
   for i,v in ipairs(Misses) do
     local _,_,v_ability,v_target = string.find(msg,v)
-    if v_ability and v_target then
+    if v_ability and spellstore[v_ability] and v_target then
       ix,ability,target = i,v_ability,v_target
       break
     end
@@ -1078,7 +1274,7 @@ function Tankalyze:UNIT_CASTEVENT(casterGuid,targetGuid,type,sId,sCastTime)
   -- last stand is two buffs, we only want to detect it once so use an id instead
   elseif (sId == 12976 and (self.db.char.announces.stand)) then
     self:AnnounceInfo(self.db.char.announces.messages.stand)
-  elseif ((sName == L["Lifegiving Gem"]) and (self.db.char.announces.gem)) then
+  elseif ((sName == L["Gift of Life"]) and (self.db.char.announces.gem)) then
     self:AnnounceInfo(self.db.char.announces.messages.gem)
   elseif ((sName == L["Challenging Shout"]) and (self.db.char.announces.shout)) then
     self:AnnounceInfo(self.db.char.announces.messages.shout)

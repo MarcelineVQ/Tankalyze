@@ -20,10 +20,9 @@ libs\AceLocale-2.2\AceLocale-2.2.lua
 libs\AceDebug-2.0\AceDebug-2.0.lua
 libs\AceHook-2.1\AceHook-2.1.lua
 
-libs\Deformat-2.0\Deformat-2.0.lua
-libs\Gratuity-2.0\Gratuity-2.0.lua
-libs\SpellCache-1.0\SpellCache-1.0.lua
-libs\SpellStatus-1.0\SpellStatus-1.0.lua
+## libs\Deformat-2.0\Deformat-2.0.lua
+## libs\Gratuity-2.0\Gratuity-2.0.lua
+## libs\SpellCache-1.0\SpellCache-1.0.lua
 libs\Dewdrop-2.0\Dewdrop-2.0.lua
 libs\Waterfall-1.0\Waterfall-1.0.lua
 libs\Tablet-2.0\Tablet-2.0.lua
