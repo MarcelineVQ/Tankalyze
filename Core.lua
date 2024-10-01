@@ -1025,20 +1025,28 @@ end
 function Tankalyze:CheckSalvation()
   if not (self.db.char.removesalv or self.db.char.mainTank) then return end
   if not (in_combat or self.db.char.mainTank) then return end
+  if Tankalyze:IsEventScheduled("SALVATION_REMOVED") then return end
+
+  local threat_stance = nil
+  local threat_buff_ix = nil
+  local threat_buff_id = nil
 
   local c = 0
   while GetPlayerBuff(c,"HELPFUL") ~= -1 do
     local id = GetPlayerBuffID(c)
-    -- print(c .. " " .. id)
     -- if id == 25895 or id == 1038 or id == 12970 or id == 25289 then
     if id == 25895 or id == 1038 then
-      CancelPlayerBuff(c)
-      if not Tankalyze:IsEventScheduled("SALVATION_REMOVED") then
-        Tankalyze:ScheduleEvent("SALVATION_REMOVED",0.2,id)
-      end
-      return
+    threat_buff_ix = c
+    threat_buff_id = id
+    end
+    if (id == 5487 or id == 9634) or id == 71 or id == 25780 then
+      threat_stance = c
     end
     c = c+1
+  end
+  if (not threat_stance or self.db.char.mainTank) and threat_buff_ix then
+    CancelPlayerBuff(threat_buff_ix)
+    Tankalyze:ScheduleEvent("SALVATION_REMOVED",0.2,threat_buff_id)
   end
 end
 
