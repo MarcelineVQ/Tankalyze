@@ -1017,14 +1017,10 @@ function Tankalyze:CHAT_MSG_SPELL_PARTY_DAMAGE()
   -- Taunt, Growl
 end
 
--- function Tankalyze:Print(msg)
---   DEFAULT_CHAT_FRAME:AddMessage(msg)
--- end
-
--- efficiecy-wise this could use a counter to check if buff count changed
 function Tankalyze:CheckSalvation()
+  if Tankalyze:CheckGroupOnly() then return end
   if not (self.db.char.removesalv or self.db.char.mainTank) then return end
-  if not (in_combat or self.db.char.mainTank) then return end
+  -- if not (in_combat or self.db.char.mainTank) then return end
   if Tankalyze:IsEventScheduled("SALVATION_REMOVED") then return end
 
   local threat_stance = nil
@@ -1042,9 +1038,10 @@ function Tankalyze:CheckSalvation()
     if (id == 5487 or id == 9634) or id == 71 or id == 25780 then
       threat_stance = c
     end
+    if threat_buff_ix and threat_buff_id then break end
     c = c+1
   end
-  if (not threat_stance or self.db.char.mainTank) and threat_buff_ix then
+  if (threat_stance or self.db.char.mainTank) and threat_buff_ix then
     CancelPlayerBuff(threat_buff_ix)
     Tankalyze:ScheduleEvent("SALVATION_REMOVED",0.2,threat_buff_id)
   end
@@ -1093,8 +1090,9 @@ function Tankalyze:PLAYER_ENTERING_WORLD()
   end
 end
 
--- mt always remove salv
+-- mt always removes salv
 function Tankalyze:PLAYER_AURAS_CHANGED()
+  if Tankalyze:CheckGroupOnly() then return end
   if self.db.char.mainTank then Tankalyze:CheckSalvation() end
 end
 
@@ -1385,12 +1383,12 @@ function Tankalyze:AnnounceInfo(msg)
   self:Announce(msg, self.db.char.announces.type, self.db.char.announces.channel)
 end
 
-function Tankalyze:Validate_GroupOnly()
+function Tankalyze:CheckGroupOnly()
   return self.db.char.grouponly and not (GetNumPartyMembers() + GetNumRaidMembers() > 0)
 end
 
 function Tankalyze:Announce(msg, type, channel)
-  if self.db.char.grouponly and not (GetNumPartyMembers() + GetNumRaidMembers() > 0) then return end
+  if Tankalyze:CheckGroupOnly() then return end
   if ((type == "GROUP") or (type == "GROUP_RW")) then
     local whereTo = nil
     if (GetNumRaidMembers() > 0) then
