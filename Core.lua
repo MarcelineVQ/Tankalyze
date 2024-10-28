@@ -1032,13 +1032,12 @@ function Tankalyze:CheckSalvation()
     local id = GetPlayerBuffID(c)
     -- if id == 25895 or id == 1038 or id == 12970 or id == 25289 then
     if id == 25895 or id == 1038 then
-    threat_buff_ix = c
-    threat_buff_id = id
-    end
-    if (id == 5487 or id == 9634) or id == 71 or id == 25780 then
+      threat_buff_ix = c
+      threat_buff_id = id
+    elseif (id == 5487 or id == 9634) or id == 71 or id == 25780 then
       threat_stance = c
     end
-    if threat_buff_ix and threat_buff_id then break end
+    if threat_buff_ix and threat_stance then break end
     c = c+1
   end
   if (threat_stance or self.db.char.mainTank) and threat_buff_ix then
