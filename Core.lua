@@ -15,7 +15,7 @@ local waterfall = AceLibrary("Waterfall-1.0")
 local player_guid = nil
 local _, playerclass = UnitClass("player")
 -- if ((playerclass ~= "WARRIOR") and (playerclass ~= "DRUID") and (playerclass ~= "PALADIN")) then
-if ((playerclass ~= "WARRIOR") and (playerclass ~= "DRUID")) then
+if ((playerclass ~= "WARRIOR") and (playerclass ~= "DRUID") and (playerclass ~= "PALADIN")) then
   DisableAddOn("Tankalyze")
   return
 end
@@ -1017,9 +1017,9 @@ function Tankalyze:CHAT_MSG_SPELL_PARTY_DAMAGE()
   -- Taunt, Growl
 end
 
-function Tankalyze:CheckSalvation()
-  if Tankalyze:CheckGroupOnly() then return end
-  if not (self.db.char.removesalv or self.db.char.mainTank) then return end
+function Tankalyze:CheckSalvation(force)
+  if not force and Tankalyze:CheckGroupOnly() then return end
+  if not force and (not (self.db.char.removesalv or self.db.char.mainTank)) then return end
   -- if not (in_combat or self.db.char.mainTank) then return end
   if Tankalyze:IsEventScheduled("SALVATION_REMOVED") then return end
 
@@ -1034,8 +1034,10 @@ function Tankalyze:CheckSalvation()
     if id == 25895 or id == 1038 then
       threat_buff_ix = c
       threat_buff_id = id
+      -- print("buff "..SpellInfo(id))
     elseif (id == 5487 or id == 9634) or id == 71 or id == 25780 then
       threat_stance = c
+      -- print("stance "..SpellInfo(id))
     end
     if threat_buff_ix and threat_stance then break end
     c = c+1
