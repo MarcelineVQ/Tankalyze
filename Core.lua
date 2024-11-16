@@ -988,10 +988,11 @@ function Tankalyze:OnEnable()
   self:RegisterEvent("PLAYER_REGEN_ENABLED") -- setting combat start timer, salv removal
   self:RegisterEvent("PLAYER_REGEN_DISABLED") -- setting combat start timer, salv removal
   self:RegisterEvent("PLAYER_ENTERING_WORLD") -- setting player guid, salv removal
-  self:RegisterEvent("PLAYER_AURAS_CHANGED") -- savl removal
+  -- self:RegisterEvent("PLAYER_AURAS_CHANGED") -- savl removal
   self:RegisterEvent("ONE_HANDED_MISSES")
   self:RegisterEvent("TRACKING_TIME_ENDED")
   self:RegisterEvent("SALVATION_REMOVED")
+  self:RegisterEvent("CheckSalvation")
 end
 
 --[[ *** Do stuff when disabled? *** ]]
@@ -1053,10 +1054,17 @@ function Tankalyze:PLAYER_REGEN_DISABLED()
   in_combat = true
   Tankalyze:ScheduleEvent("TRACKING_TIME_ENDED",self.db.char.mainTankDuration)
   Tankalyze:CheckSalvation() -- combat has started, check salv
+  if self.db.char.mainTank and not Tankalyze:IsEventScheduled("CheckSalvation") then
+    -- main tank mode try salve removal every 3 seconds, should be often enough
+    Tankalyze.salv_repeat_event = Tankalyze:ScheduleRepeatingEvent("CheckSalvation",3)
+  end
 end
 
 function Tankalyze:PLAYER_REGEN_ENABLED()
   in_combat = false
+  if Tankalyze:IsEventScheduled(Tankalyze.salv_repeat_event) then
+    Tankalyze:CancelScheduledEvent(Tankalyze.salv_repeat_event)
+  end
 end
 
 function Tankalyze:TRACKING_TIME_ENDED()
