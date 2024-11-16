@@ -57,7 +57,7 @@ function Tankalyze:OnInitialize()
       mocking = true,
       shout = false,
       roar = false,
-      judgement = true,
+      reckoning = true,
       channel = "Tankalyze",
       type = "YELL", -- "GROUP_RW", "GROUP", "RAID", "PARTY", "CHANNEL", "YELL", "SAY", "DEBUG"
       messages = {
@@ -71,8 +71,8 @@ function Tankalyze:OnInitialize()
         shoutSCT = L["ShoutMessageSCT"],
         roar = L["RoarMessage"],
         roarSCT = L["RoarMessageSCT"],
-        judgement = L["JudgementMessage"],
-        judgementSCT = L["JudgementMessageSCT"],
+        reckoning = L["ReckoningMessage"],
+        reckoningSCT = L["ReckoningMessageSCT"],
       },
     },
     
@@ -206,16 +206,16 @@ function Tankalyze:OnInitialize()
             end,
             order = 2,
           },
-          judgement = {
+          reckoning = {
             type = "toggle",
-            name = L["Judgement of Justice"],
-            desc = L["Announces resisted Judgement of Justice"],
+            name = L["Hand of Reckoning"],
+            desc = L["Announces resisted Hand of Reckoning"],
             icon = "Interface\\Icons\\Spell_Holy_SealOfWrath",
             get = function()
-              return self.db.char.resists.judgement
+              return self.db.char.resists.reckoning
             end,
             set = function()
-              self.db.char.resists.judgement = not self.db.char.resists.judgement
+              self.db.char.resists.reckoning = not self.db.char.resists.reckoning
             end,
             order = 3,
           },
@@ -321,16 +321,16 @@ function Tankalyze:OnInitialize()
                 usage = "<any string>",
                 order = 2,
               },
-              judgement = {
+              reckoning = {
                 type = "text",
-                name = L["Judgement of Justice"],
+                name = L["Hand of Reckoning"],
                 desc = L["MessagesInfo"],
-                icon = "Interface\\Icons\\Spell_Holy_SealOfWrath",
+                icon = "Interface\\Icons\\Spell_Holy_Redemption",
                 get = function()
-                  return self.db.char.resists.messages.judgement
+                  return self.db.char.resists.messages.reckoning
                 end,
                 set = function(arg1)
-                  self.db.char.resists.messages.judgement = arg1
+                  self.db.char.resists.messages.reckoning = arg1
                 end,
                 usage = "<any string>",
                 order = 3,
@@ -414,16 +414,16 @@ function Tankalyze:OnInitialize()
             end,
             order = 2,
           },
-          judgement = {
+          reckoning = {
             type = "toggle",
-            name = L["Judgement of Justice"],
-            desc = L["Judgement of Justice"],
-            icon = "Interface\\Icons\\Spell_Holy_SealOfWrath",
+            name = L["Hand of Reckoning"],
+            desc = L["Hand of Reckoning"],
+            icon = "Interface\\Icons\\Spell_Holy_Redemption",
             get = function()
-              return self.db.char.announces.judgement
+              return self.db.char.announces.reckoning
             end,
             set = function()
-              self.db.char.announces.judgement = not self.db.char.announces.judgement
+              self.db.char.announces.reckoning = not self.db.char.announces.reckoning
             end,
             order = 3,
           },
@@ -581,16 +581,16 @@ function Tankalyze:OnInitialize()
                 usage = "<any string>",
                 order = 2,
               },
-              judgement = {
+              reckoning = {
                 type = "text",
-                name = L["Judgement of Justice"],
+                name = L["Hand of Reckoning"],
                 desc = L["MessagesInfo"],
-                icon = "Interface\\Icons\\Spell_Holy_SealOfWrath",
+                icon = "Interface\\Icons\\Spell_Holy_Redemption",
                 get = function()
-                  return self.db.char.announces.messages.judgement
+                  return self.db.char.announces.messages.reckoning
                 end,
                 set = function(arg1)
-                  self.db.char.announces.messages.judgement = arg1
+                  self.db.char.announces.messages.reckoning = arg1
                 end,
                 usage = "<any string>",
                 order = 3,
@@ -842,10 +842,10 @@ function Tankalyze:OnInitialize()
   local _, englishClass = UnitClass("player")
   if (englishClass == "WARRIOR") then
     -- hide Paladin options
-    self.opts.args.resists.args.judgement = nil
-    self.opts.args.announces.args.judgement = nil
-    self.opts.args.resists.args.messages.args.judgement = nil
-    self.opts.args.announces.args.messages.args.judgement = nil
+    self.opts.args.resists.args.reckoning = nil
+    self.opts.args.announces.args.reckoning = nil
+    self.opts.args.resists.args.messages.args.reckoning = nil
+    self.opts.args.announces.args.messages.args.reckoning = nil
     -- hide Druid options
     self.opts.args.resists.args.growl = nil
     self.opts.args.resists.args.roar = nil
@@ -858,10 +858,10 @@ function Tankalyze:OnInitialize()
     self.opts.args.announces.args.messages.args.growl = nil
   elseif (englishClass == "DRUID") then
     -- hide Paladin options
-    self.opts.args.resists.args.judgement = nil
-    self.opts.args.announces.args.judgement = nil
-    self.opts.args.resists.args.messages.args.judgement = nil
-    self.opts.args.announces.args.messages.args.judgement = nil
+    self.opts.args.resists.args.reckoning = nil
+    self.opts.args.announces.args.reckoning = nil
+    self.opts.args.resists.args.messages.args.reckoning = nil
+    self.opts.args.announces.args.messages.args.reckoning = nil
     -- hide Warrior options
     self.opts.args.resists.args.taunt = nil
     self.opts.args.resists.args.mocking = nil
@@ -886,10 +886,10 @@ function Tankalyze:OnInitialize()
     self.opts.args.announces.args.messages.args.deathwish = nil
   elseif (englishClass == "PALADIN") then
     -- hide Paladin options, TODO: Not yet, sorry paladins, judgement taunt is weird
-    self.opts.args.resists.args.judgement = nil
-    self.opts.args.announces.args.judgement = nil
-    self.opts.args.resists.args.messages.args.judgement = nil
-    self.opts.args.announces.args.messages.args.judgement = nil
+    -- self.opts.args.resists.args.judgement = nil
+    -- self.opts.args.announces.args.judgement = nil
+    -- self.opts.args.resists.args.messages.args.judgement = nil
+    -- self.opts.args.announces.args.messages.args.judgement = nil
     -- hide Druid options
     self.opts.args.resists.args.growl = nil
     self.opts.args.resists.args.roar = nil
@@ -1006,8 +1006,8 @@ local TauntFails = {
 local GrowlFails = {
   "ResistGrowlRX","ImmuneGrowlRX1","ImmuneGrowlRX2","MissGrowlRX"
 }
-local JudgementFails = {
-  "ResistJudgementRX","ImmuneJudgementRX1","ImmuneJudgementRX2","MissJudgementRX"
+local ReckoningFails = {
+  "ResistReckoningRX","ImmuneReckoningRX1","ImmuneReckoningRX2","MissReckoningRX"
 }
 local taunt_whys = {"resisted", "immune", "immune", "missed"}
 local mocking_whys = {"missed", "dodged", "parried", "immune"}
@@ -1212,12 +1212,12 @@ function Tankalyze:CHAT_MSG_SPELL_SELF_DAMAGE(msg)
       end
     end
   end
-  if self.db.char.resists.judgement then
-    local JudgementFailed = false
-    for i,key in ipairs(JudgementFails) do
-      local _,_,JudgementFailed = string.find(msg,L[key])
-      if (JudgementFailed) then
-        self:AnnounceResist(self.db.char.resists.messages.judgement, self.db.char.resists.messages.judgementSCT, taunt_whys[i])
+  if self.db.char.resists.reckoning then
+    local ReckoningFailed = false
+    for i,key in ipairs(ReckoningFails) do
+      local _,_,ReckoningFailed = string.find(msg,L[key])
+      if (ReckoningFailed) then
+        self:AnnounceResist(self.db.char.resists.messages.reckoning, self.db.char.resists.messages.reckoningSCT, taunt_whys[i])
         return
       end
     end
