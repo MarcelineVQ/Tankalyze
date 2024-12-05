@@ -15,7 +15,7 @@ local waterfall = AceLibrary("Waterfall-1.0")
 local player_guid = nil
 local _, playerclass = UnitClass("player")
 -- if ((playerclass ~= "WARRIOR") and (playerclass ~= "DRUID") and (playerclass ~= "PALADIN")) then
-if ((playerclass ~= "WARRIOR") and (playerclass ~= "DRUID") and (playerclass ~= "PALADIN")) then
+if ((playerclass ~= "WARRIOR") and (playerclass ~= "DRUID") and (playerclass ~= "PALADIN") and (playerclass ~= "SHAMAN")) then
   DisableAddOn("Tankalyze")
   return
 end
@@ -53,11 +53,12 @@ function Tankalyze:OnInitialize()
   self:RegisterDefaults('char', {
     resists = {
       taunt = true,
-      growl = true,
       mocking = true,
+      growl = true,
+      reckoning = true,
+      earthshaker_slam = true,
       shout = false,
       roar = false,
-      reckoning = true,
       channel = "Tankalyze",
       type = "YELL", -- "GROUP_RW", "GROUP", "RAID", "PARTY", "CHANNEL", "YELL", "SAY", "DEBUG"
       messages = {
@@ -73,12 +74,17 @@ function Tankalyze:OnInitialize()
         roarSCT = L["RoarMessageSCT"],
         reckoning = L["ReckoningMessage"],
         reckoningSCT = L["ReckoningMessageSCT"],
+        earthshaker_slam = L["EarthshakerSlamMessage"],
+        earthshaker_slamSCT = L["EarthshakerSlamMessageSCT"],
       },
     },
     
     announces = {
       taunt = true,
       mocking = true,
+      growl = true,
+      reckoning = true,
+      earthshaker_slam = true,
       wall = true,
       stand = true,
       gem = true,
@@ -91,6 +97,12 @@ function Tankalyze:OnInitialize()
         tauntSCT = L["TauntUsedMessageSCT"],
         mocking = L["MockingUsedMessage"],
         mockingSCT = L["MockingUsedMessageSCT"],
+        growl = L["TauntUsedMessage"],
+        growlSCT = L["TauntUsedMessageSCT"],
+        reckoning = L["TauntUsedMessage"],
+        reckoningSCT = L["TauntUsedMessageSCT"],
+        earthshaker_slam = L["TauntUsedMessage"],
+        earthshaker_slamSCT = L["TauntUsedMessageSCT"],
         deathwish = L["DeathWishUsedMessage"],
         wall = L["WallUsedMessage"],
         stand = L["StandUsedMessage"],
@@ -159,20 +171,6 @@ function Tankalyze:OnInitialize()
         end,
         order = 4,
       },
-      -- stance_removesalv = { -- TODO stance-based salve removal, which only occurs at battle start?
-      --   type = "toggle",
-      --   name = L["RemoveSalvation"],
-      --   desc = L["RemoveSalvationDesc"],
-      --   -- icon = "Interface\\Icons\\Spell_Nature_Reincarnation",
-      --   get = function()
-      --     return self.db.char.removesalv
-      --   end,
-      --   set = function()
-      --     self.db.char.removesalv = not self.db.char.removesalv
-      --     Tankalyze:CheckSalvation()
-      --   end,
-      --   order = 5,
-      -- },
       resists = {
         type = "group",
         order = 6,
@@ -218,6 +216,19 @@ function Tankalyze:OnInitialize()
               self.db.char.resists.reckoning = not self.db.char.resists.reckoning
             end,
             order = 3,
+          },
+          earthshaker_slam = {
+            type = "toggle",
+            name = L["Earthshaker Slam"],
+            desc = L["Announces resisted Earthshaker Slam"],
+            icon = "Interface\\Icons\\Spell_Nature_Earthquake",
+            get = function()
+              return self.db.char.resists.earthshaker_slam
+            end,
+            set = function()
+              self.db.char.resists.earthshaker_slam = not self.db.char.resists.earthshaker_slam
+            end,
+            order = 4,
           },
           mocking = {
             type = "toggle",
@@ -335,6 +346,20 @@ function Tankalyze:OnInitialize()
                 usage = "<any string>",
                 order = 3,
               },
+              earthshaker_slam = {
+                type = "text",
+                name = L["Earthshaker Slam"],
+                desc = L["MessagesInfo"],
+                icon = "Interface\\Icons\\Spell_Nature_Earthquake",
+                get = function()
+                  return self.db.char.resists.messages.earthshaker_slam
+                end,
+                set = function(arg1)
+                  self.db.char.resists.messages.earthshaker_slam = arg1
+                end,
+                usage = "<any string>",
+                order = 4,
+              },
               mocking = {
                 type = "text",
                 name = L["Mocking Blow"],
@@ -426,6 +451,19 @@ function Tankalyze:OnInitialize()
               self.db.char.announces.reckoning = not self.db.char.announces.reckoning
             end,
             order = 3,
+          },
+          earthshaker_slam = {
+            type = "toggle",
+            name = L["Earthshaker Slam"],
+            desc = L["Earthshaker Slam"],
+            icon = "Interface\\Icons\\Spell_Nature_Earthquake",
+            get = function()
+              return self.db.char.announces.earthshaker_slam
+            end,
+            set = function()
+              self.db.char.announces.earthshaker_slam = not self.db.char.announces.earthshaker_slam
+            end,
+            order = 4,
           },
           mocking = {
             type = "toggle",
@@ -595,6 +633,20 @@ function Tankalyze:OnInitialize()
                 usage = "<any string>",
                 order = 3,
               },
+              earthshaker_slam = {
+                type = "text",
+                name = L["Earthshaker Slam"],
+                desc = L["MessagesInfo"],
+                icon = "Interface\\Icons\\Spell_Nature_Earthquake",
+                get = function()
+                  return self.db.char.announces.messages.earthshaker_slam
+                end,
+                set = function(arg1)
+                  self.db.char.announces.messages.earthshaker_slam = arg1
+                end,
+                usage = "<any string>",
+                order = 4,
+              },
               mocking = {
                 type = "text",
                 name = L["Mocking Blow"],
@@ -713,6 +765,7 @@ function Tankalyze:OnInitialize()
             end,
             set = function()
               self.db.char.mainTank = not self.db.char.mainTank
+              Tankalyze:CheckSalvation()
             end,
             order = 11,
           },
@@ -839,8 +892,14 @@ function Tankalyze:OnInitialize()
     },
   }
   
+  -- redo this
   local _, englishClass = UnitClass("player")
   if (englishClass == "WARRIOR") then
+    -- hide Shaman options
+    self.opts.args.resists.args.earthshaker_slam = nil
+    self.opts.args.announces.args.earthshaker_slam = nil
+    self.opts.args.resists.args.messages.args.earthshaker_slam = nil
+    self.opts.args.announces.args.messages.args.earthshaker_slam = nil
     -- hide Paladin options
     self.opts.args.resists.args.reckoning = nil
     self.opts.args.announces.args.reckoning = nil
@@ -857,6 +916,11 @@ function Tankalyze:OnInitialize()
     self.opts.args.announces.args.messages.args.roar = nil
     self.opts.args.announces.args.messages.args.growl = nil
   elseif (englishClass == "DRUID") then
+    -- hide Shaman options
+    self.opts.args.resists.args.earthshaker_slam = nil
+    self.opts.args.announces.args.earthshaker_slam = nil
+    self.opts.args.resists.args.messages.args.earthshaker_slam = nil
+    self.opts.args.announces.args.messages.args.earthshaker_slam = nil
     -- hide Paladin options
     self.opts.args.resists.args.reckoning = nil
     self.opts.args.announces.args.reckoning = nil
@@ -885,11 +949,49 @@ function Tankalyze:OnInitialize()
     self.opts.args.announces.args.messages.args.mocking = nil
     self.opts.args.announces.args.messages.args.deathwish = nil
   elseif (englishClass == "PALADIN") then
-    -- hide Paladin options, TODO: Not yet, sorry paladins, judgement taunt is weird
-    -- self.opts.args.resists.args.judgement = nil
-    -- self.opts.args.announces.args.judgement = nil
-    -- self.opts.args.resists.args.messages.args.judgement = nil
-    -- self.opts.args.announces.args.messages.args.judgement = nil
+    -- hide Shaman options
+    self.opts.args.resists.args.earthshaker_slam = nil
+    self.opts.args.announces.args.earthshaker_slam = nil
+    self.opts.args.resists.args.messages.args.earthshaker_slam = nil
+    self.opts.args.announces.args.messages.args.earthshaker_slam = nil
+    -- hide Druid options
+    self.opts.args.resists.args.growl = nil
+    self.opts.args.resists.args.roar = nil
+    self.opts.args.resists.args.messages.args.growl = nil
+    self.opts.args.resists.args.messages.args.roar = nil
+
+    self.opts.args.announces.args.growl = nil
+    self.opts.args.announces.args.roar = nil
+    self.opts.args.announces.args.messages.args.growl = nil
+    self.opts.args.announces.args.messages.args.roar = nil
+    -- hide Warrior options
+    self.opts.args.resists.args.taunt = nil
+    self.opts.args.resists.args.mocking = nil
+    self.opts.args.resists.args.shout = nil
+    self.opts.args.resists.args.messages.args.taunt = nil
+    self.opts.args.resists.args.messages.args.mocking = nil
+    self.opts.args.resists.args.messages.args.shout = nil
+
+    self.opts.args.announces.args.taunt = nil
+    self.opts.args.announces.args.wall = nil
+    self.opts.args.announces.args.stand = nil
+    self.opts.args.announces.args.gem = nil
+    self.opts.args.announces.args.shout = nil
+    self.opts.args.announces.args.mocking = nil
+    self.opts.args.announces.args.deathwish = nil
+    self.opts.args.announces.args.messages.args.taunt = nil
+    self.opts.args.announces.args.messages.args.wall = nil
+    self.opts.args.announces.args.messages.args.stand = nil
+    self.opts.args.announces.args.messages.args.gem = nil
+    self.opts.args.announces.args.messages.args.shout = nil
+    self.opts.args.announces.args.messages.args.mocking = nil
+    self.opts.args.announces.args.messages.args.deathwish = nil
+  elseif (englishClass == "SHAMAN") then
+    -- hide Paladin options
+    self.opts.args.resists.args.reckoning = nil
+    self.opts.args.announces.args.reckoning = nil
+    self.opts.args.resists.args.messages.args.reckoning = nil
+    self.opts.args.announces.args.messages.args.reckoning = nil
     -- hide Druid options
     self.opts.args.resists.args.growl = nil
     self.opts.args.resists.args.roar = nil
@@ -1010,6 +1112,9 @@ local GrowlFails = {
 local ReckoningFails = {
   "ResistReckoningRX","ImmuneReckoningRX1","ImmuneReckoningRX2","MissReckoningRX"
 }
+local EarthshakerSlamFails = {
+  "ResistEarthshakerSlamRX","ImmuneEarthshakerSlamRX1","ImmuneEarthshakerSlamRX2","MissEarthshakerSlamRX"
+}
 local taunt_whys = {"resisted", "immune", "immune", "missed"}
 local mocking_whys = {"missed", "dodged", "parried", "immune"}
 --[[ *** EVENTS *** ]]
@@ -1018,52 +1123,69 @@ function Tankalyze:CHAT_MSG_SPELL_PARTY_DAMAGE()
   -- Taunt, Growl
 end
 
+function Tankalyze:CheckSalvAuras()
+  local threat_stance_ix = nil
+  local threat_buff_ix = nil
+  local threat_buff_id = nil
+
+  local c = 0
+  while true do
+    local id = GetPlayerBuffID(c)
+    if not id then break end
+
+    -- if id == 25895 or id == 1038 or id == 12970 or id == 25289 then
+    if id == 25895 or id == 1038 then -- greater salv or salv
+      threat_buff_ix = c
+      threat_buff_id = id
+    elseif (id == 5487 or id == 9634) or id == 71 or id == 25780 then -- bears or def stance or rf
+      threat_stance_ix = c
+      -- print("stance "..SpellInfo(id))
+    end
+    if threat_buff_ix and threat_stance_ix then break end
+    c = c + 1
+  end
+  return threat_stance_ix,threat_buff_ix,threat_buff_id
+end
+
 function Tankalyze:CheckSalvation(force)
+  local removed = false
   if not force and Tankalyze:CheckGroupOnly() then return end
   if not force and (not (self.db.char.removesalv or self.db.char.mainTank)) then return end
   -- if not (in_combat or self.db.char.mainTank) then return end
   if Tankalyze:IsEventScheduled("SALVATION_REMOVED") then return end
 
-  local threat_stance = nil
-  local threat_buff_ix = nil
-  local threat_buff_id = nil
+  local threat_stance,threat_buff_ix,threat_buff_id = Tankalyze:CheckSalvAuras()
 
-  local c = 0
-  while GetPlayerBuff(c,"HELPFUL") ~= -1 do
-    local id = GetPlayerBuffID(c)
-    -- if id == 25895 or id == 1038 or id == 12970 or id == 25289 then
-    if id == 25895 or id == 1038 then
-      threat_buff_ix = c
-      threat_buff_id = id
-      -- print("buff "..SpellInfo(id))
-    elseif (id == 5487 or id == 9634) or id == 71 or id == 25780 then
-      threat_stance = c
-      -- print("stance "..SpellInfo(id))
-    end
-    if threat_buff_ix and threat_stance then break end
-    c = c+1
-  end
+  -- weapon imbue for shaman
+  local imbue = string.find(GetWeaponEnchantInfo("player") or "","^Rockbiter")
+  if imbue then threat_stance = -1 end -- not an ix, but not nil
+
   if (threat_stance or self.db.char.mainTank) and threat_buff_ix then
     CancelPlayerBuff(threat_buff_ix)
     Tankalyze:ScheduleEvent("SALVATION_REMOVED",0.2,threat_buff_id)
+    removed = true
   end
+
+  return removed
 end
 
 function Tankalyze:PLAYER_REGEN_DISABLED()
   at_combat_start = true
   in_combat = true
-  Tankalyze:ScheduleEvent("TRACKING_TIME_ENDED",self.db.char.mainTankDuration)
-  Tankalyze:CheckSalvation() -- combat has started, check salv
-  if self.db.char.mainTank and not Tankalyze:IsEventScheduled("CheckSalvation") then
-    -- main tank mode try salve removal every 3 seconds, should be often enough
+
+  -- Check salv. Did we start combat in tank-mode? keep salv removed for the fight then unless toggled off
+  if (Tankalyze:CheckSalvation() or self.db.char.mainTank) and not Tankalyze.salv_repeat_event then
     Tankalyze.salv_repeat_event = Tankalyze:ScheduleRepeatingEvent("CheckSalvation",3)
   end
+  
+  Tankalyze:ScheduleEvent("TRACKING_TIME_ENDED",self.db.char.mainTankDuration)
 end
 
 function Tankalyze:PLAYER_REGEN_ENABLED()
   in_combat = false
-  if Tankalyze:IsEventScheduled(Tankalyze.salv_repeat_event) then
+  if Tankalyze.salv_repeat_event then
     Tankalyze:CancelScheduledEvent(Tankalyze.salv_repeat_event)
+    Tankalyze.salv_repeat_event = nil
   end
 end
 
@@ -1101,8 +1223,7 @@ end
 
 -- mt always removes salv
 function Tankalyze:PLAYER_AURAS_CHANGED()
-  if Tankalyze:CheckGroupOnly() then return end
-  if self.db.char.mainTank then Tankalyze:CheckSalvation() end
+  -- our combat start salve checks should handl this with less work
 end
 
 function Tankalyze:ONE_HANDED_MISSES(ability,type,target)
@@ -1197,13 +1318,8 @@ function Tankalyze:CHAT_MSG_SPELL_SELF_DAMAGE(msg)
   -- end
 
   if self.db.char.resists.taunt then
-    local TauntFailed = false
     for i,key in ipairs(TauntFails) do
-      local _,_,TauntFailed = string.find(msg,L[key])
-      -- check here for failure and report why
-      -- ["TauntMessage"] = ">>> Taunt failed against: {t} ({l}) <<<",
-      -- ["TauntMessage"] = ">>> Taunt {r} against: {t} ({l}) <<<",
-      if (TauntFailed) then
+      if string.find(msg,L[key]) then
         self:AnnounceResist(self.db.char.resists.messages.taunt, self.db.char.resists.messages.tauntSCT, taunt_whys[i])
         return
       end
@@ -1211,21 +1327,27 @@ function Tankalyze:CHAT_MSG_SPELL_SELF_DAMAGE(msg)
   end
   
   if self.db.char.resists.growl then
-    local GrowlFailed = false
     for i,key in ipairs(GrowlFails) do
       local _,_,GrowlFailed = string.find(msg,L[key])
-      if (GrowlFailed) then  
+      if string.find(msg,L[key]) then  
         self:AnnounceResist(self.db.char.resists.messages.growl, self.db.char.resists.messages.growlSCT, taunt_whys[i])
         return
       end
     end
   end
   if self.db.char.resists.reckoning then
-    local ReckoningFailed = false
     for i,key in ipairs(ReckoningFails) do
-      local _,_,ReckoningFailed = string.find(msg,L[key])
-      if (ReckoningFailed) then
+      if string.find(msg,L[key]) then
         self:AnnounceResist(self.db.char.resists.messages.reckoning, self.db.char.resists.messages.reckoningSCT, taunt_whys[i])
+        return
+      end
+    end
+  end
+
+  if self.db.char.resists.earthshaker_slam then
+    for i,key in ipairs(EarthshakerSlamFails) do
+      if string.find(msg,L[key]) then
+        self:AnnounceResist(self.db.char.resists.messages.earthshaker_slam, self.db.char.resists.messages.earthshaker_slamSCT, taunt_whys[i])
         return
       end
     end
@@ -1273,6 +1395,21 @@ function Tankalyze:UNIT_CASTEVENT(casterGuid,targetGuid,type,sId,sCastTime)
 		if self.db.char.announces.taunt then
     	self:AnnounceTaunt(self.db.char.announces.messages.taunt, self.db.char.announces.messages.tauntSCT)
 		end
+  elseif (sName == L["Growl"]) then
+    tried_vs = targetGuid
+    if self.db.char.announces.growl then
+      self:AnnounceTaunt(self.db.char.announces.messages.growl, self.db.char.announces.messages.growlSCT)
+    end
+  elseif (sName == L["Hand of Reckoning"]) then
+    tried_vs = targetGuid
+    if self.db.char.announces.reckoning then
+      self:AnnounceTaunt(self.db.char.announces.messages.reckoning, self.db.char.announces.messages.reckoningSCT)
+    end
+  elseif (sName == L["Earthshaker Slam"]) then
+    tried_vs = targetGuid
+    if self.db.char.announces.earthshaker_slam then
+      self:AnnounceTaunt(self.db.char.announces.messages.earthshaker_slam, self.db.char.announces.messages.earthshaker_slamSCT)
+    end
   elseif (sName == L["Mocking Blow"]) then
     tried_vs = targetGuid
     if self.db.char.announces.mocking then
