@@ -73,7 +73,7 @@ L:RegisterTranslations("enUS", function() return {
 	["Active only when player in group"] = true,
 
 	["RemoveSalvation"] = "Remove Salvation",
-	["RemoveSalvationDesc"] = "Remove threat-reduction buffs at combat start if you are in a defensive stance.\nAutomatically on in Main Tank mode, ignoring stance.",
+	["RemoveSalvationDesc"] = "Applies to:\nWarriors in Defensive Stance\nDruids in Bear Form\nPaladins with Righteous Fury\nShamans with Rockbiter\nDefensive Tactics Warriors wearing Shield\n\nAutomatically on in Main Tank mode, ignoring stance.",
 	["NotifySalvationRemoval"] = "Notify Salvation Removal",
 	["NotifySalvationRemovalDesc"] = "Print to chatbox when salvation is removed.",
 

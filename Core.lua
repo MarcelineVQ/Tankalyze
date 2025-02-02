@@ -1160,6 +1160,16 @@ function Tankalyze:CheckSalvation(force)
   local imbue = string.find(GetWeaponEnchantInfo("player") or "","^Rockbiter")
   if imbue then threat_stance = -1 end -- not an ix, but not nil
 
+  -- defensive tactics + shield = threat stance
+  local tname,_,_,_,_,levels = GetTalentInfo(3,18)
+  if tname == "Defensive Tactics" and levels > 0 then
+    local _,_,OH_ID = string.find(GetInventoryItemLink("player", 17) or "","item:(%d+)")
+    _, _, _, _, _, itemType = GetItemInfo(OH_ID or "")
+    if itemType and itemType ==  "Shields" then
+      threat_stance = -1 -- not an ix, but not nil
+    end
+  end
+
   if (threat_stance or self.db.char.mainTank) and threat_buff_ix then
     CancelPlayerBuff(threat_buff_ix)
     Tankalyze:ScheduleEvent("SALVATION_REMOVED",0.2,threat_buff_id)
