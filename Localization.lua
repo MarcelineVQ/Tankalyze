@@ -123,7 +123,7 @@ L:RegisterTranslations("enUS", function() return {
 	["GG, I just put rend on a worldboss!"] = true,
 	
 	["MainTankMode"] = true,
-	["MainTankModeDesc"] = "Announces misses, parries, dodges at fight start.\nDeathwish announce is on in this mode.\nSalvation removal is on in this mode.",
+	["MainTankModeDesc"] = "Announces misses, parries, dodges at fight start.\nDeathwish announce is on in this mode.\nSalvation auto-removal is always on in this mode.",
 
 	["Test"] = true,
 	["Send test messages with current settings"] = true,

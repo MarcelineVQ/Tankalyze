@@ -1090,7 +1090,7 @@ function Tankalyze:OnEnable()
   self:RegisterEvent("PLAYER_REGEN_ENABLED") -- setting combat start timer, salv removal
   self:RegisterEvent("PLAYER_REGEN_DISABLED") -- setting combat start timer, salv removal
   self:RegisterEvent("PLAYER_ENTERING_WORLD") -- setting player guid, salv removal
-  -- self:RegisterEvent("PLAYER_AURAS_CHANGED") -- savl removal
+  self:RegisterEvent("PLAYER_AURAS_CHANGED") -- savl removal
   self:RegisterEvent("ONE_HANDED_MISSES")
   self:RegisterEvent("TRACKING_TIME_ENDED")
   self:RegisterEvent("SALVATION_REMOVED")
@@ -1176,16 +1176,17 @@ function Tankalyze:CheckSalvation(force)
     removed = true
   end
 
-  return removed
+  return removed,threat_stance and true or false
 end
 
 function Tankalyze:PLAYER_REGEN_DISABLED()
   at_combat_start = true
   in_combat = true
 
-  -- Check salv. Did we start combat in tank-mode? keep salv removed for the fight then unless toggled off
-  if (Tankalyze:CheckSalvation() or self.db.char.mainTank) and not Tankalyze.salv_repeat_event then
-    Tankalyze.salv_repeat_event = Tankalyze:ScheduleRepeatingEvent("CheckSalvation",3)
+  -- Check salv. Did we start combat in a tank-mode? keep salv removed for the fight then unless toggled off
+  local _,was_in_def = Tankalyze:CheckSalvation()
+  if (was_in_def or self.db.char.mainTank) and not Tankalyze.salv_repeat_event then
+    Tankalyze.salv_repeat_event = Tankalyze:ScheduleRepeatingEvent("CheckSalvation",1)
   end
   
   Tankalyze:ScheduleEvent("TRACKING_TIME_ENDED",self.db.char.mainTankDuration)
@@ -1219,7 +1220,7 @@ function Tankalyze:PLAYER_ENTERING_WORLD()
   spellstore = {}
   local i = 1
   while true do
-    local name, rank, id = GetSpellName(i, BOOKTYPE_SPELL)
+    local name, rank, id = GetSpellName(i, BOOKTYPE_SPELL) -- todo update all my addons to recheck spells on spellbook changes
     -- local name,tank,texture,minrange,maxrange = SpellInfo(id) 
     if not name then
         break
@@ -1231,9 +1232,11 @@ function Tankalyze:PLAYER_ENTERING_WORLD()
   end
 end
 
--- mt always removes salv
+-- mt always removes salv, only check outside of comabt for efficiency, combat has a scheduled check
 function Tankalyze:PLAYER_AURAS_CHANGED()
-  -- our combat start salve checks should handl this with less work
+  if not UnitAffectingCombat("player") and self.db.char.mainTank then
+    Tankalyze:CheckSalvation()
+  end
 end
 
 function Tankalyze:ONE_HANDED_MISSES(ability,type,target)
